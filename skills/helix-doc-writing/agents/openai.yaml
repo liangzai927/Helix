@@ -1,0 +1,7 @@
+interface:
+  display_name: "Helix Doc Writing"
+  short_description: "Keep Helix docs truthful, concise, and current."
+  default_prompt: "Use $helix-doc-writing to update Helix README or technical docs without overstating unfinished features."
+
+policy:
+  allow_implicit_invocation: true

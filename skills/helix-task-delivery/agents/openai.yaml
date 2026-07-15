@@ -1,0 +1,7 @@
+interface:
+  display_name: "Helix Task Delivery"
+  short_description: "Keep Helix coding tasks small, scoped, and verified."
+  default_prompt: "Use $helix-task-delivery to implement one scoped Helix task without drifting across files or phases."
+
+policy:
+  allow_implicit_invocation: true

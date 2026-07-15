@@ -1,0 +1,7 @@
+interface:
+  display_name: "Helix Architecture Guard"
+  short_description: "Protect Helix layer boundaries and MVP scope."
+  default_prompt: "Use $helix-architecture-guard before changing Helix package boundaries, Runtime design, or VS Code responsibilities."
+
+policy:
+  allow_implicit_invocation: true

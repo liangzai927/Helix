@@ -1,0 +1,7 @@
+interface:
+  display_name: "Helix Git Delivery"
+  short_description: "Keep Helix commits atomic, validated, and phase-safe."
+  default_prompt: "Use $helix-git-delivery before staging or committing Helix work so the diff, tests, and roadmap gate all line up."
+
+policy:
+  allow_implicit_invocation: true
