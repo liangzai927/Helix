@@ -1,7 +1,16 @@
+import {
+  invalidResponseError,
+  isJsonValue,
+  isRecord,
+  normalizeModelError,
+  readErrorDetails,
+  readJsonResponse,
+  requireNonEmptyValue,
+} from './adapter-utils';
 import { ModelError } from './errors';
+import { parseSseJson, readSseData } from './sse';
 import type {
   BaseModel,
-  JsonValue,
   ModelConfig,
   ModelEvent,
   ModelMessage,
@@ -227,90 +236,6 @@ function mapMessage(message: ModelMessage): Record<string, string> {
   };
 }
 
-/** 按 SSE 事件边界读取 data 字段，不依赖底层网络分块方式。 */
-async function* readSseData(
-  body: ReadableStream<Uint8Array>,
-): AsyncIterable<string> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) {
-        buffer += decoder.decode();
-        break;
-      }
-
-      buffer += decoder.decode(value, { stream: true });
-      buffer = normalizeLineEndings(buffer, false);
-
-      let boundaryIndex = buffer.indexOf('\n\n');
-
-      while (boundaryIndex >= 0) {
-        const event = buffer.slice(0, boundaryIndex);
-        buffer = buffer.slice(boundaryIndex + 2);
-        const data = extractSseData(event);
-
-        if (data !== undefined) {
-          yield data;
-        }
-
-        boundaryIndex = buffer.indexOf('\n\n');
-      }
-    }
-
-    const remainingData = extractSseData(normalizeLineEndings(buffer, true));
-
-    if (remainingData !== undefined) {
-      yield remainingData;
-    }
-  } catch (error) {
-    throw new ModelError('读取模型流式响应失败', {
-      code: 'request_failed',
-      cause: error,
-    });
-  } finally {
-    reader.releaseLock();
-  }
-}
-
-/** 归一化 SSE 换行符，并在读取阶段保留可能跨块的末尾 CR。 */
-function normalizeLineEndings(value: string, flush: boolean): string {
-  const hasPendingCarriageReturn = !flush && value.endsWith('\r');
-  const completeValue = hasPendingCarriageReturn ? value.slice(0, -1) : value;
-
-  return `${completeValue.replace(/\r\n?/g, '\n')}${hasPendingCarriageReturn ? '\r' : ''}`;
-}
-
-/** 从单个 SSE 事件中提取并合并 data 行。 */
-function extractSseData(event: string): string | undefined {
-  const dataLines = event
-    .split('\n')
-    .filter((line) => line.startsWith('data:'))
-    .map((line) => line.slice(5).trimStart());
-
-  if (dataLines.length === 0) {
-    return undefined;
-  }
-
-  return dataLines.join('\n');
-}
-
-/** 将 SSE data 转成待校验对象，解析失败时保留统一错误类型。 */
-function parseSseJson(data: string): unknown {
-  try {
-    return JSON.parse(data) as unknown;
-  } catch (error) {
-    throw new ModelError('模型流式响应包含无效 JSON', {
-      code: 'invalid_response',
-      cause: error,
-    });
-  }
-}
-
 /** 校验并归一化非流式 Chat Completions 响应。 */
 function parseChatResponse(
   payload: unknown,
@@ -429,84 +354,4 @@ function mapStopReason(value: unknown): ModelStopReason {
   }
 
   return 'completed';
-}
-
-/** 安全读取 JSON，避免原生解析异常穿透模型边界。 */
-async function readJsonResponse(response: Response): Promise<unknown> {
-  try {
-    return (await response.json()) as unknown;
-  } catch (error) {
-    throw new ModelError('模型响应包含无效 JSON', {
-      code: 'invalid_response',
-      cause: error,
-    });
-  }
-}
-
-/** 限制 HTTP 错误正文长度，避免大响应污染上层错误信息。 */
-async function readErrorDetails(response: Response): Promise<string> {
-  try {
-    return (await response.text()).trim().slice(0, 500);
-  } catch {
-    return '';
-  }
-}
-
-/** 统一创建响应结构错误，避免各解析分支产生不同错误形态。 */
-function invalidResponseError(): ModelError {
-  return new ModelError('模型响应结构无效', {
-    code: 'invalid_response',
-  });
-}
-
-/** 保留已有 ModelError，其余异常统一包装为请求错误。 */
-function normalizeModelError(error: unknown): ModelError {
-  if (error instanceof ModelError) {
-    return error;
-  }
-
-  return new ModelError('模型请求失败', {
-    code: 'request_failed',
-    cause: error,
-  });
-}
-
-/** 校验 Adapter 必需配置，并返回去除首尾空白后的值。 */
-function requireNonEmptyValue(value: string, field: string): string {
-  const normalizedValue = value.trim();
-
-  if (normalizedValue.length === 0) {
-    throw new ModelError(`模型配置 ${field} 不能为空`, {
-      code: 'configuration_error',
-    });
-  }
-
-  return normalizedValue;
-}
-
-/** 判断未知值是否为可安全读取字段的普通对象。 */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/** 递归确认原始响应能够安全存入统一 JSON 类型。 */
-function isJsonValue(value: unknown): value is JsonValue {
-  if (
-    value === null ||
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  ) {
-    return true;
-  }
-
-  if (Array.isArray(value)) {
-    return value.every(isJsonValue);
-  }
-
-  if (isRecord(value)) {
-    return Object.values(value).every(isJsonValue);
-  }
-
-  return false;
 }
