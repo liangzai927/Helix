@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { AgentEvent, AgentPlan, AgentTask } from '@helix-agent/protocol';
 
+import { FakeExecutor, type Executor, type ExecutorContext } from '../executor';
 import { FakePlanner, type Planner, type PlannerContext, type PlannerTask } from '../planner';
 
 import { RuntimeState } from './state';
@@ -13,15 +14,20 @@ import {
 } from './types';
 
 type RuntimePlanner = Planner<PlannerTask<string>, PlannerContext, AgentPlan>;
+type RuntimeExecutor = Executor<AgentPlan, ExecutorContext, AgentEvent>;
 
 /** 最小 Runtime：先打通事件闭环，再逐步替换成真实 planner / executor。 */
 export class AgentRuntime {
   private readonly dependencies: RuntimeDependencies;
   private readonly planner: RuntimePlanner;
+  private readonly executor: RuntimeExecutor;
 
   public constructor(dependencies: RuntimeDependencies = {}) {
     this.dependencies = defineRuntimeDependencies(dependencies);
     this.planner = (this.dependencies.planner as RuntimePlanner | undefined) ?? new FakePlanner();
+    this.executor =
+      (this.dependencies.executor as RuntimeExecutor | undefined) ??
+      new FakeExecutor(this.dependencies.clock);
   }
 
   public async *run(input: string): AsyncIterable<AgentEvent> {
@@ -53,13 +59,9 @@ export class AgentRuntime {
 
     yield state.setStatus('finished', '任务执行完成');
 
-    yield {
-      type: 'finished',
-      taskId: task.id,
-      createdAt: this.getCreatedAt(),
-      status: 'finished',
-      ...(plan.summary === undefined ? {} : { summary: plan.summary }),
-    };
+    for await (const event of this.executor.execute(plan, {})) {
+      yield event;
+    }
   }
 
   private createTask(input: string): AgentTask {

@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import type { AgentEvent, AgentPlan } from '@helix-agent/protocol';
 
-import { AgentRuntime, type Planner } from '../index';
+import {
+  AgentRuntime,
+  type Executor,
+  type ExecutorContext,
+  type Planner,
+} from '../index';
 
 async function collectEvents(iterable: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
   const events: AgentEvent[] = [];
@@ -94,7 +99,7 @@ describe('AgentRuntime', () => {
     });
   });
 
-  it('uses an injected planner when one is provided', async () => {
+  it('uses injected planner and executor dependencies when provided', async () => {
     const customPlan: AgentPlan = {
       id: 'plan_custom',
       taskId: 'task_1',
@@ -112,6 +117,20 @@ describe('AgentRuntime', () => {
         return customPlan;
       },
     };
+    let executedPlan: AgentPlan | undefined;
+    const executor: Executor<AgentPlan, ExecutorContext, AgentEvent> = {
+      async *execute(plan) {
+        executedPlan = plan;
+
+        yield {
+          type: 'finished',
+          taskId: plan.taskId,
+          createdAt: '2026-07-15T09:00:00.000Z',
+          status: 'finished',
+          summary: 'executor override',
+        };
+      },
+    };
 
     const runtime = new AgentRuntime({
       idGenerator: {
@@ -125,6 +144,7 @@ describe('AgentRuntime', () => {
         },
       },
       planner,
+      executor,
     });
 
     const events = await collectEvents(runtime.run('生成自定义计划'));
@@ -137,12 +157,13 @@ describe('AgentRuntime', () => {
       plan: customPlan,
     });
 
+    expect(executedPlan).toBe(customPlan);
     expect(events.at(-1)).toEqual({
       type: 'finished',
       taskId: 'task_1',
       createdAt: '2026-07-15T09:00:00.000Z',
       status: 'finished',
-      summary: 'planner override',
+      summary: 'executor override',
     });
   });
 });
