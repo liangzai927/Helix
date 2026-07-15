@@ -26,6 +26,7 @@ Read [references/prompt-patterns.md](references/prompt-patterns.md) when you nee
 5. Match the local style exactly. Reuse the repo's naming, folder shape, import style, and test patterns.
 6. Avoid `any` unless the user explicitly accepts it. Prefer narrow types, discriminated unions, and interface-based dependencies.
 7. Add comments only when they explain intent, constraints, or non-obvious behavior. Do not narrate obvious code.
+8. For reusable helpers, shared utilities, runtime state containers, protocol-facing adapters, and other common methods that will be reused across modules, add concise Chinese comments that explain the method or type's purpose and any important constraints.
 
 ## Delivery Workflow
 
@@ -46,6 +47,7 @@ Read [references/prompt-patterns.md](references/prompt-patterns.md) when you nee
 - Prefer extending an existing module over creating a new layer.
 - Preserve external APIs unless the user explicitly approves a breaking change.
 - Keep placeholder code out of delivered files.
+- When adding shared or reusable methods, include Chinese comments at the declaration site so later roadmap days can reuse them without re-reading the whole implementation.
 
 ### 4. Validate
 

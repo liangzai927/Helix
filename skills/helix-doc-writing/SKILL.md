@@ -52,6 +52,7 @@ Read [references/doc-checklist.md](references/doc-checklist.md) when you need a 
 - keep them brief
 - place them only around non-obvious constraints
 - match the language and tone already used in the touched file
+- for reusable helpers, common methods, shared utilities, and runtime-facing abstractions, prefer concise Chinese comments at the declaration site so the purpose is clear before reading the implementation
 
 ## Required Cross-checks
 
