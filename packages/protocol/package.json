@@ -4,7 +4,7 @@
   "private": true,
   "description": "Protocol workspace package for Helix Agent",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "types": "src/index.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",

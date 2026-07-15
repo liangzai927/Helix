@@ -39,7 +39,11 @@ importers:
 
   apps/vscode: {}
 
-  packages/core: {}
+  packages/core:
+    dependencies:
+      '@helix-agent/protocol':
+        specifier: workspace:*
+        version: link:../protocol
 
   packages/models: {}
 
