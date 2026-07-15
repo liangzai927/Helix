@@ -9,11 +9,7 @@ export type ModelToolChoice = 'auto' | 'none' | { name: string };
 
 /** 统一抽象模型结束原因，避免上层感知 provider 原始字段差异。 */
 export type ModelStopReason =
-  | 'completed'
-  | 'stop'
-  | 'max_tokens'
-  | 'tool_call'
-  | 'error';
+  'completed' | 'stop' | 'max_tokens' | 'tool_call' | 'error';
 
 /** 这一组 JSON 类型用于承接通用元数据和原始响应负载。 */
 export type JsonPrimitive = string | number | boolean | null;
@@ -90,7 +86,7 @@ export interface ResponseCompletedModelEvent {
 /** 模型层错误统一外抛成事件，而不是混入普通文本流。 */
 export interface ModelErrorEvent {
   type: 'error';
-  error: Error;
+  error: ModelError;
 }
 
 export type ModelEvent =
@@ -115,3 +111,4 @@ export interface BaseModel {
   chat(request: ModelRequest): Promise<ModelResponse>;
   stream(request: ModelRequest): AsyncIterable<ModelEvent>;
 }
+import type { ModelError } from './errors';
