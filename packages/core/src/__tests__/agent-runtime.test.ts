@@ -15,7 +15,7 @@ async function collectEvents(iterable: AsyncIterable<AgentEvent>): Promise<Agent
 }
 
 describe('AgentRuntime', () => {
-  it('emits the minimum Day 14 event flow in order', async () => {
+  it('emits the minimum runtime event flow in order', async () => {
     let sequence = 0;
     const runtime = new AgentRuntime({
       idGenerator: {
@@ -73,9 +73,9 @@ describe('AgentRuntime', () => {
       type: 'plan.created',
       taskId: 'task_1',
       plan: {
-        id: 'plan_3',
         taskId: 'task_1',
         goal: '修复 runtime 事件流',
+        summary: '已为任务生成最小计划：修复 runtime 事件流',
       },
     });
 

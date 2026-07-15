@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { AgentEvent, AgentPlan, AgentTask } from '@helix-agent/protocol';
 
-import type { Planner, PlannerContext, PlannerTask } from '../planner';
+import { FakePlanner, type Planner, type PlannerContext, type PlannerTask } from '../planner';
 
 import { RuntimeState } from './state';
 import {
@@ -14,12 +14,14 @@ import {
 
 type RuntimePlanner = Planner<PlannerTask<string>, PlannerContext, AgentPlan>;
 
-/** Day 14 的最小 Runtime：先打通事件闭环，再逐步替换成真实 planner / executor。 */
+/** 最小 Runtime：先打通事件闭环，再逐步替换成真实 planner / executor。 */
 export class AgentRuntime {
   private readonly dependencies: RuntimeDependencies;
+  private readonly planner: RuntimePlanner;
 
   public constructor(dependencies: RuntimeDependencies = {}) {
     this.dependencies = defineRuntimeDependencies(dependencies);
+    this.planner = (this.dependencies.planner as RuntimePlanner | undefined) ?? new FakePlanner();
   }
 
   public async *run(input: string): AsyncIterable<AgentEvent> {
@@ -76,49 +78,14 @@ export class AgentRuntime {
   }
 
   private async createPlan(task: AgentTask): Promise<AgentPlan> {
-    const planner = this.dependencies.planner as RuntimePlanner | undefined;
-
-    if (planner) {
-      return planner.createPlan(
-        {
-          input: task.input,
-          taskId: task.id,
-          conversationId: task.conversationId,
-        },
-        {},
-      );
-    }
-
-    return this.createFakePlan(task);
-  }
-
-  private createFakePlan(task: AgentTask): AgentPlan {
-    return {
-      id: this.createId('plan'),
-      taskId: task.id,
-      goal: task.input,
-      createdAt: this.getCreatedAt(),
-      findings: ['当前使用内置 fake plan，尚未接入真实模型规划'],
-      steps: [
-        {
-          id: this.createId('step'),
-          title: '分析用户输入',
-          kind: 'read',
-          status: 'completed',
-          expectedOutput: '确认任务目标和范围',
-        },
-        {
-          id: this.createId('step'),
-          title: '生成最小执行计划',
-          kind: 'other',
-          status: 'pending',
-          expectedOutput: '输出可执行的计划摘要',
-        },
-      ],
-      risks: ['当前计划为固定模板，尚未结合真实项目上下文'],
-      files: [],
-      summary: `已为任务生成最小计划：${this.createTaskTitle(task.input)}`,
-    };
+    return this.planner.createPlan(
+      {
+        input: task.input,
+        taskId: task.id,
+        conversationId: task.conversationId,
+      },
+      {},
+    );
   }
 
   private createTaskTitle(input: string): string {
