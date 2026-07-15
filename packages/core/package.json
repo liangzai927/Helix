@@ -10,8 +10,12 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint \"src/**/*.ts\"",
+    "demo": "node --import tsx demo/run-runtime-demo.ts",
+    "typecheck": "tsc -p tsconfig.demo.json --noEmit",
+    "lint": "eslint \"src/**/*.ts\" \"demo/**/*.ts\"",
     "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.1"
   }
 }
