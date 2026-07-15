@@ -1,0 +1,9 @@
+{
+  "name": "helix-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Helix Agent workspace",
+  "scripts": {
+    "typecheck": "tsc --version"
+  }
+}
