@@ -1,4 +1,4 @@
-import type { AgentEvent } from '@helix-agent/protocol';
+import type { AgentEvent, ApprovalRequest } from '@helix-agent/protocol';
 import { useEffect, useState, type FormEvent } from 'react';
 
 import {
@@ -47,6 +47,8 @@ export function App() {
   });
   const [apiKey, setApiKey] = useState('');
   const [configStatus, setConfigStatus] = useState('API Key not set');
+  const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
+  const [resolvingApprovals, setResolvingApprovals] = useState<string[]>([]);
 
   useEffect(() => {
     /** 将扩展端响应追加到当前消息列表。 */
@@ -66,6 +68,34 @@ export function App() {
           }`,
         );
         return;
+      }
+
+      if (message.type === 'agent.event') {
+        const agentEvent = message.event;
+
+        if (agentEvent.type === 'approval.requested') {
+          setApprovals((current) => [
+            ...current.filter(
+              (approval) => approval.id !== agentEvent.approval.id,
+            ),
+            agentEvent.approval,
+          ]);
+          return;
+        }
+
+        if (agentEvent.type === 'approval.resolved') {
+          setApprovals((current) =>
+            current.map((approval) =>
+              approval.id === agentEvent.approval.id
+                ? agentEvent.approval
+                : approval,
+            ),
+          );
+          setResolvingApprovals((current) =>
+            current.filter((id) => id !== agentEvent.approval.id),
+          );
+          return;
+        }
       }
 
       const content =
@@ -117,6 +147,18 @@ export function App() {
     };
     vscode.postMessage(message);
     setInput('');
+  }
+
+  /** 向 Extension 发送审批决定，最终状态以 Runtime 返回事件为准。 */
+  function handleApproval(approvalId: string, approved: boolean): void {
+    const message: WebviewToExtensionMessage = {
+      type: 'approval.resolve',
+      approvalId,
+      approved,
+      ...(approved ? {} : { reason: '用户在 Helix Sidebar 中拒绝' }),
+    };
+    vscode.postMessage(message);
+    setResolvingApprovals((current) => [...current, approvalId]);
   }
 
   return (
@@ -185,6 +227,39 @@ export function App() {
           </footer>
         </form>
       </details>
+
+      {approvals.map((approval) => {
+        const resolving = resolvingApprovals.includes(approval.id);
+        const pending = approval.status === 'pending';
+
+        return (
+          <article className="approval" key={approval.id}>
+            <span>APPROVAL · {approval.kind}</span>
+            <h2>{approval.title}</h2>
+            <p>{approval.reason}</p>
+            {pending ? (
+              <footer>
+                <button
+                  disabled={resolving}
+                  onClick={() => handleApproval(approval.id, false)}
+                  type="button"
+                >
+                  Reject
+                </button>
+                <button
+                  disabled={resolving}
+                  onClick={() => handleApproval(approval.id, true)}
+                  type="button"
+                >
+                  {resolving ? 'Resolving...' : 'Approve'}
+                </button>
+              </footer>
+            ) : (
+              <strong>{approval.status}</strong>
+            )}
+          </article>
+        );
+      })}
 
       <section className="messages" aria-live="polite">
         {messages.map((message) => (

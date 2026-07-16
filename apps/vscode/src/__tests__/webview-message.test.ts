@@ -71,4 +71,21 @@ describe('Webview 消息协议', () => {
       }),
     ).toBe(false);
   });
+
+  it('只接受包含审批 ID 和布尔决定的审批消息', () => {
+    expect(
+      isWebviewToExtensionMessage({
+        type: 'approval.resolve',
+        approvalId: 'approval-1',
+        approved: true,
+      }),
+    ).toBe(true);
+    expect(
+      isWebviewToExtensionMessage({
+        type: 'approval.resolve',
+        approvalId: '',
+        approved: 'yes',
+      }),
+    ).toBe(false);
+  });
 });

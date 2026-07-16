@@ -6,6 +6,10 @@ import {
   isWebviewToExtensionMessage,
   type ExtensionToWebviewMessage,
 } from '../shared/webview-message';
+import {
+  resolveApproval,
+  type ApprovalResolverPort,
+} from './approval-resolution';
 import { ModelConfigStore } from './model-config-store';
 import type { DiffPreviewPort } from './patch-preview';
 import type { AgentRuntimePort } from './run-agent-task';
@@ -20,6 +24,7 @@ export class HelixSidebarProvider implements vscode.WebviewViewProvider {
     private readonly extensionUri: vscode.Uri,
     private readonly runtime: AgentRuntimePort,
     private readonly modelConfigStore: ModelConfigStore,
+    private readonly approvalManager: ApprovalResolverPort,
     private readonly diffPreview: DiffPreviewPort,
   ) {}
 
@@ -45,6 +50,11 @@ export class HelixSidebarProvider implements vscode.WebviewViewProvider {
     const messageSubscription = webview.onDidReceiveMessage(
       async (message: unknown) => {
         if (!isWebviewToExtensionMessage(message)) {
+          return;
+        }
+
+        if (message.type === 'approval.resolve') {
+          resolveApproval(this.approvalManager, message);
           return;
         }
 

@@ -45,10 +45,18 @@ export interface ConfigSavedMessage {
   hasApiKey: boolean;
 }
 
+export interface ApprovalResolveMessage {
+  type: 'approval.resolve';
+  approvalId: string;
+  approved: boolean;
+  reason?: string;
+}
+
 export type WebviewToExtensionMessage =
   | UserMessage
   | ConfigGetMessage
-  | ConfigSaveMessage;
+  | ConfigSaveMessage
+  | ApprovalResolveMessage;
 export type ExtensionToWebviewMessage =
   | AssistantMessage
   | AgentEventMessage
@@ -88,6 +96,15 @@ export function isWebviewToExtensionMessage(
 
   if (message.type === 'config.get') {
     return true;
+  }
+
+  if (message.type === 'approval.resolve') {
+    return (
+      typeof message.approvalId === 'string' &&
+      message.approvalId.trim().length > 0 &&
+      typeof message.approved === 'boolean' &&
+      (message.reason === undefined || typeof message.reason === 'string')
+    );
   }
 
   return (
