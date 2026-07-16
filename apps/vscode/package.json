@@ -46,7 +46,7 @@
     "build": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint \"src/**/*.ts\" \"webview-ui/src/**/*.{ts,tsx}\"",
+    "lint": "eslint \"shared/**/*.ts\" \"src/**/*.ts\" \"webview-ui/src/**/*.{ts,tsx}\"",
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {

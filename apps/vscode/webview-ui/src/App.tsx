@@ -1,5 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 
+import {
+  isExtensionToWebviewMessage,
+  type WebviewToExtensionMessage,
+} from '../../shared/webview-message';
 import { vscode } from './vscode';
 
 interface ChatMessage {
@@ -15,6 +19,25 @@ export function App() {
   ]);
   const [input, setInput] = useState('');
 
+  useEffect(() => {
+    /** 将扩展端响应追加到当前消息列表。 */
+    function handleMessage(event: MessageEvent<unknown>): void {
+      const message = event.data;
+
+      if (!isExtensionToWebviewMessage(message)) {
+        return;
+      }
+
+      setMessages((current) => [
+        ...current,
+        { id: Date.now(), role: 'assistant', content: message.content },
+      ]);
+    }
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
     const content = input.trim();
@@ -27,7 +50,11 @@ export function App() {
       ...current,
       { id: Date.now(), role: 'user', content },
     ]);
-    vscode.postMessage({ type: 'user.message', content });
+    const message: WebviewToExtensionMessage = {
+      type: 'user.message',
+      content,
+    };
+    vscode.postMessage(message);
     setInput('');
   }
 
