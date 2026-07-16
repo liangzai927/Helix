@@ -10,6 +10,8 @@ export interface ToolDescriptor {
 
 /** Registry 内部统一的工具执行边界。 */
 export interface RegisteredTool extends ToolDescriptor {
+  requiresApprovalFor?(input: unknown): boolean;
+
   /** 使用已经过 Schema 约束的未知输入执行具体工具。 */
   execute(input: unknown): Promise<unknown>;
 }
@@ -30,6 +32,12 @@ export class ToolRegistry {
       inputSchema: tool.inputSchema,
       readOnly: tool.readOnly,
       requiresApproval: tool.requiresApproval,
+      ...(tool.requiresApprovalFor === undefined
+        ? {}
+        : {
+            requiresApprovalFor: (input: unknown) =>
+              tool.requiresApprovalFor?.(input as TInput) ?? tool.requiresApproval,
+          }),
       execute: (input: unknown) => tool.execute(input as TInput),
     });
   }

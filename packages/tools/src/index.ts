@@ -10,3 +10,5 @@ export * from './search-text-tool';
 export * from './get-diagnostics-tool';
 export * from './approval-port';
 export * from './apply-patch-tool';
+export * from './terminal-port';
+export * from './run-terminal-tool';
