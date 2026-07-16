@@ -41,6 +41,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@helix-agent/models':
+        specifier: workspace:*
+        version: link:../models
       '@helix-agent/protocol':
         specifier: workspace:*
         version: link:../protocol
