@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { AgentEvent, AgentPlan, AgentTask } from '@helix-agent/protocol';
+import type { ToolDescriptor } from '@helix-agent/tools';
 
 import { FakeExecutor, type Executor, type ExecutorContext } from '../executor';
 import { FakePlanner, type Planner, type PlannerContext, type PlannerTask } from '../planner';
@@ -28,6 +29,11 @@ export class AgentRuntime {
     this.executor =
       (this.dependencies.executor as RuntimeExecutor | undefined) ??
       new FakeExecutor(this.dependencies.clock);
+  }
+
+  /** 返回当前 Runtime 已注册工具元数据，不触发任何工具执行。 */
+  public listAvailableTools(): ToolDescriptor[] {
+    return this.dependencies.toolRegistry?.list() ?? [];
   }
 
   public async *run(input: string): AsyncIterable<AgentEvent> {

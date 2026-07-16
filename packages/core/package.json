@@ -7,7 +7,8 @@
   "types": "dist/index.d.ts",
   "dependencies": {
     "@helix-agent/models": "workspace:*",
-    "@helix-agent/protocol": "workspace:*"
+    "@helix-agent/protocol": "workspace:*",
+    "@helix-agent/tools": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

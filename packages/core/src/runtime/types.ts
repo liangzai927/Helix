@@ -3,6 +3,7 @@ import type { ContextBuilder } from '../context';
 import type { ConversationMemory } from '../memory';
 import type { Executor } from '../executor';
 import type { Planner } from '../planner';
+import type { ToolRegistry } from '@helix-agent/tools';
 
 /** Runtime 面向外部的三种基础模式。 */
 export type AgentRuntimeMode = 'chat' | 'plan' | 'execute';
@@ -59,6 +60,7 @@ export interface RuntimeDependencies {
   clock?: RuntimeClock;
   idGenerator?: RuntimeIdGenerator;
   logger?: RuntimeLogger;
+  toolRegistry?: ToolRegistry;
 }
 
 export const DEFAULT_AGENT_RUNTIME_MODE: AgentRuntimeMode = 'chat';

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { ToolRegistry } from '@helix-agent/tools';
+
 import {
+  AgentRuntime,
   defineRuntimeDependencies,
   resolveAgentRuntimeOptions,
   type ApprovalManager,
@@ -76,5 +79,33 @@ describe('core runtime contracts', () => {
     expect(dependencies.contextBuilder).toBe(contextBuilder);
     expect(dependencies.memory).toBe(memory);
     expect(dependencies.approvalManager).toBe(approvalManager);
+  });
+
+  it('exposes registered tools without executing them', () => {
+    const toolRegistry = new ToolRegistry();
+    let executionCount = 0;
+    toolRegistry.register({
+      name: 'read_file',
+      description: 'Read a file',
+      inputSchema: { type: 'object' },
+      readOnly: true,
+      requiresApproval: false,
+      async execute() {
+        executionCount += 1;
+        return {};
+      },
+    });
+    const runtime = new AgentRuntime({ toolRegistry });
+
+    expect(runtime.listAvailableTools()).toEqual([
+      {
+        name: 'read_file',
+        description: 'Read a file',
+        inputSchema: { type: 'object' },
+        readOnly: true,
+        requiresApproval: false,
+      },
+    ]);
+    expect(executionCount).toBe(0);
   });
 });

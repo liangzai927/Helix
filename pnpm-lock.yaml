@@ -47,6 +47,9 @@ importers:
       '@helix-agent/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@helix-agent/tools':
+        specifier: workspace:*
+        version: link:../tools
     devDependencies:
       tsx:
         specifier: ^4.23.1
