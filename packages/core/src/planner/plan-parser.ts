@@ -28,6 +28,7 @@ export class PlanParser {
       return createBasePlan(input, summary);
     }
 
+    const files = parseSectionItems(sections.get('关键文件') ?? '');
     const stepTitles = parseSectionItems(sections.get('实施步骤') ?? '');
 
     return {
@@ -36,13 +37,18 @@ export class PlanParser {
         ...parseSectionItems(sections.get('问题理解') ?? ''),
         ...parseSectionItems(sections.get('影响范围') ?? ''),
       ],
-      files: parseSectionItems(sections.get('关键文件') ?? ''),
-      steps: stepTitles.map((title) => ({
-        id: `step_${randomUUID()}`,
-        title,
-        kind: inferStepKind(title),
-        status: 'pending',
-      })),
+      files,
+      steps: stepTitles.map((title) => {
+        const kind = inferStepKind(title);
+
+        return {
+          id: `step_${randomUUID()}`,
+          title,
+          kind,
+          status: 'pending',
+          ...(kind === 'read' && files.length > 0 ? { filePaths: files } : {}),
+        };
+      }),
       risks: parseSectionItems(sections.get('风险点') ?? ''),
     };
   }

@@ -48,6 +48,10 @@ describe('PlanParser', () => {
       ['修改会话恢复逻辑', 'edit', 'pending'],
       ['运行相关测试', 'command', 'pending'],
     ]);
+    expect(plan.steps[1]?.filePaths).toEqual([
+      'src/auth/session.ts',
+      'src/login/index.ts',
+    ]);
   });
 
   it('falls back to a summary when the output is malformed', () => {
