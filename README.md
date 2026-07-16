@@ -126,6 +126,7 @@ pnpm --filter @helix-agent/core demo:patch-terminal
 - Core Runtime 已支持只读项目探索、结构化计划解析、计划缓存和只读步骤执行
 - Core Runtime 已支持补丁审批应用和低风险终端命令执行
 - 中高风险命令仍会进入等待状态，不会绕过审批执行
+- Core 已支持内存会话、最近消息选择、上下文字符预算和工具输出压缩
 - CLI、Desktop 和 VS Code 目前只有工作区脚手架，尚未接入 Core Runtime
 
 ---
@@ -252,4 +253,5 @@ This demo requires no API key. The Runtime creates a patch for a file in a syste
 - The Core Runtime supports read-only project exploration, structured plan parsing, plan caching, and read-only step execution
 - The Core Runtime supports approved patch application and low-risk terminal commands
 - Medium and high-risk commands remain in a waiting state and cannot bypass approval
+- Core supports in-memory conversations, recent-message selection, character budgets, and compressed tool context
 - CLI, Desktop, and VS Code currently remain workspace scaffolds and are not connected to the Core Runtime
