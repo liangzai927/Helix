@@ -13,7 +13,8 @@
   },
   "main": "./dist/extension.js",
   "activationEvents": [
-    "onCommand:helix.hello"
+    "onCommand:helix.hello",
+    "onView:helix.chat"
   ],
   "contributes": {
     "commands": [
@@ -21,7 +22,25 @@
         "command": "helix.hello",
         "title": "Helix: Hello"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "helix.sidebar",
+          "title": "Helix",
+          "icon": "media/helix.svg"
+        }
+      ]
+    },
+    "views": {
+      "helix.sidebar": [
+        {
+          "id": "helix.chat",
+          "name": "Helix",
+          "type": "webview"
+        }
+      ]
+    }
   },
   "scripts": {
     "build": "node esbuild.config.mjs",
