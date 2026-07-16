@@ -87,6 +87,12 @@ export class PlanExecutor implements Executor<AgentPlan, ExecutorContext, AgentE
         continue;
       }
 
+      if (step.kind === 'command' && this.toolRegistry.get('run_terminal') !== undefined) {
+        const executed = yield* this.executeCommand(plan, step, context);
+        waiting = waiting || !executed;
+        continue;
+      }
+
       if (step.kind === 'edit' || step.kind === 'command') {
         waiting = true;
         yield {
@@ -117,8 +123,10 @@ export class PlanExecutor implements Executor<AgentPlan, ExecutorContext, AgentE
     toolName: string,
     input: JsonObject,
     approvedWrite = false,
-  ): AsyncIterable<AgentEvent> {
+  ): AsyncGenerator<AgentEvent, JsonValue> {
     const tool = requireExecutableTool(this.toolRegistry, toolName, approvedWrite);
+    const requiresApproval =
+      tool.requiresApprovalFor?.(input) ?? tool.requiresApproval;
     const toolCallId = `tool_call_${randomUUID()}`;
     const startedAt = this.getCreatedAt();
 
@@ -133,7 +141,7 @@ export class PlanExecutor implements Executor<AgentPlan, ExecutorContext, AgentE
         input,
         createdAt: startedAt,
         readOnly: tool.readOnly,
-        requiresApproval: tool.requiresApproval,
+        requiresApproval,
         status: 'running',
         startedAt,
       },
@@ -157,6 +165,8 @@ export class PlanExecutor implements Executor<AgentPlan, ExecutorContext, AgentE
           output,
         },
       };
+
+      return output;
     } catch (error) {
       yield {
         type: 'tool.call.finished',
@@ -176,6 +186,71 @@ export class PlanExecutor implements Executor<AgentPlan, ExecutorContext, AgentE
 
       throw error;
     }
+  }
+
+  /** 低风险命令直接执行，中高风险命令保留为等待状态。 */
+  private async *executeCommand(
+    plan: AgentPlan,
+    step: PlanStep,
+    context: ExecutorContext,
+  ): AsyncGenerator<AgentEvent, boolean> {
+    const tool = this.toolRegistry.get('run_terminal');
+
+    if (tool === undefined) {
+      return false;
+    }
+
+    const command = step.description ?? step.title;
+    const input: JsonObject = {
+      command,
+      ...(context.cwd === undefined ? {} : { cwd: context.cwd }),
+    };
+    const requiresApproval =
+      tool.requiresApprovalFor?.(input) ?? tool.requiresApproval;
+
+    if (requiresApproval) {
+      yield {
+        type: 'status.changed',
+        taskId: plan.taskId,
+        createdAt: this.getCreatedAt(),
+        status: 'waiting_approval',
+        message: `步骤“${step.title}”等待命令审批`,
+      };
+      return false;
+    }
+
+    yield {
+      type: 'command.started',
+      taskId: plan.taskId,
+      createdAt: this.getCreatedAt(),
+      command: {
+        command,
+        ...(context.cwd === undefined ? {} : { cwd: context.cwd }),
+      },
+    };
+
+    const output = yield* this.executeTool(
+      plan,
+      step,
+      'run_terminal',
+      input,
+      true,
+    );
+    const commandResult = requireCommandResult(output);
+
+    yield {
+      type: 'command.finished',
+      taskId: plan.taskId,
+      createdAt: this.getCreatedAt(),
+      command: {
+        command,
+        ...(context.cwd === undefined ? {} : { cwd: context.cwd }),
+        exitCode: commandResult.exitCode,
+        summary: commandResult.summary,
+      },
+    };
+
+    return true;
   }
 
   /** 生成补丁、等待审批并在批准后调用 apply_patch。 */
@@ -305,6 +380,24 @@ function requireJsonValue(value: unknown): JsonValue {
   }
 
   throw new Error('工具输出不是有效 JSON 值');
+}
+
+/** 从 run_terminal 工具结果中提取命令事件必需字段。 */
+function requireCommandResult(value: JsonValue): { exitCode: number; summary: string } {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    typeof value.exitCode === 'number' &&
+    typeof value.summary === 'string'
+  ) {
+    return {
+      exitCode: value.exitCode,
+      summary: value.summary,
+    };
+  }
+
+  throw new Error('run_terminal 输出缺少 exitCode 或 summary');
 }
 
 /** 递归检查未知工具结果是否符合协议 JSON 类型。 */

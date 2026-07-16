@@ -105,6 +105,14 @@ pnpm --filter @helix-agent/core demo:planner
 
 该 Demo 不需要 API Key。它会使用真实文件系统只读工具探索仓库，输出 `tool.call.started`、`tool.call.finished` 和 `plan.created`，再按计划执行只读步骤。相同需求会连续运行两次，第二次输出 `[cache.hit] true`，证明计划已从内存缓存复用；修改和命令步骤仍只进入等待状态，不会改变文件或执行命令。
 
+### 运行 Patch 与 Terminal 验收 Demo
+
+```bash
+pnpm --filter @helix-agent/core demo:patch-terminal
+```
+
+该 Demo 不需要 API Key。Runtime 会为系统临时目录中的文件生成补丁，输出 `patch.created` 和审批事件，自动批准后通过 `apply_patch` 写入临时文件，再执行低风险命令 `git status --short`。控制台会输出完整事件流，Demo 结束后自动删除临时目录，不修改仓库业务文件。
+
 ### 文档入口
 
 - [项目愿景](docs/00-项目愿景.md)
@@ -116,7 +124,8 @@ pnpm --filter @helix-agent/core demo:planner
 - Core Runtime 已可通过控制台 Demo 独立运行
 - Core Runtime 已可通过 `ModelPlanner` 调用真实 OpenAI Compatible 模型
 - Core Runtime 已支持只读项目探索、结构化计划解析、计划缓存和只读步骤执行
-- 修改文件和命令执行当前仍只输出等待状态
+- Core Runtime 已支持补丁审批应用和低风险终端命令执行
+- 中高风险命令仍会进入等待状态，不会绕过审批执行
 - CLI、Desktop 和 VS Code 目前只有工作区脚手架，尚未接入 Core Runtime
 
 ---
@@ -222,6 +231,14 @@ pnpm --filter @helix-agent/core demo:planner
 
 This demo requires no API key. It explores the repository through real read-only file-system tools, prints `tool.call.started`, `tool.call.finished`, and `plan.created`, then executes the read-only plan steps. It runs the same request twice and prints `[cache.hit] true` on the second run to confirm in-memory plan reuse. Edit and command steps only enter a waiting state, so the demo does not modify files or run commands.
 
+### Run The Patch And Terminal Acceptance Demo
+
+```bash
+pnpm --filter @helix-agent/core demo:patch-terminal
+```
+
+This demo requires no API key. The Runtime creates a patch for a file in a system temporary directory, emits `patch.created` and approval events, applies the approved patch through `apply_patch`, and then runs the low-risk `git status --short` command. The console prints the complete event stream. The temporary directory is removed afterward, and no repository source file is modified.
+
 ### Documents
 
 - [Project Vision](docs/00-项目愿景.md)
@@ -233,5 +250,6 @@ This demo requires no API key. It explores the repository through real read-only
 - The Core Runtime can now run independently through the console demo
 - The Core Runtime can now call a real OpenAI-compatible model through `ModelPlanner`
 - The Core Runtime supports read-only project exploration, structured plan parsing, plan caching, and read-only step execution
-- File edits and command execution currently only emit a waiting state
+- The Core Runtime supports approved patch application and low-risk terminal commands
+- Medium and high-risk commands remain in a waiting state and cannot bypass approval
 - CLI, Desktop, and VS Code currently remain workspace scaffolds and are not connected to the Core Runtime
