@@ -47,4 +47,28 @@ describe('Webview 消息协议', () => {
       }),
     ).toBe(true);
   });
+
+  it('接受完整模型配置并拒绝未知 Provider', () => {
+    expect(
+      isWebviewToExtensionMessage({
+        type: 'config.save',
+        configuration: {
+          provider: 'openai-compatible',
+          baseUrl: 'https://api.example.com/v1',
+          modelId: 'gpt-test',
+        },
+        apiKey: 'secret-key',
+      }),
+    ).toBe(true);
+    expect(
+      isWebviewToExtensionMessage({
+        type: 'config.save',
+        configuration: {
+          provider: 'unknown',
+          baseUrl: 'https://api.example.com/v1',
+          modelId: 'gpt-test',
+        },
+      }),
+    ).toBe(false);
+  });
 });

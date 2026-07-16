@@ -14,6 +14,8 @@ body {
 }
 
 button,
+input,
+select,
 textarea {
   font: inherit;
 }
@@ -21,7 +23,7 @@ textarea {
 .shell {
   min-height: 100vh;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   gap: 16px;
   padding: 18px 14px 14px;
 }
@@ -53,6 +55,46 @@ h1 {
   flex-direction: column;
   gap: 10px;
   overflow-y: auto;
+}
+
+.configuration {
+  border: 1px solid var(--vscode-panel-border);
+  padding: 9px 10px;
+}
+
+.configuration summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.configuration form {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+}
+
+.configuration label {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.configuration input,
+.configuration select {
+  width: 100%;
+  border: 1px solid var(--vscode-input-border, transparent);
+  outline: none;
+  padding: 7px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+}
+
+.configuration footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
 }
 
 .message {
@@ -90,7 +132,8 @@ h1 {
   border-color: var(--vscode-focusBorder);
 }
 
-.composer button {
+.composer button,
+.configuration button {
   justify-self: end;
   border: 0;
   padding: 7px 16px;

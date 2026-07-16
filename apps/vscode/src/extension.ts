@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { AgentRuntime } from '@helix-agent/core';
 
 import { HelixSidebarProvider } from './sidebar-provider';
+import { ModelConfigStore } from './model-config-store';
 
 /** 激活 Helix Agent Extension 并注册基础命令。 */
 export function activate(context: vscode.ExtensionContext): void {
@@ -10,7 +11,11 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   const sidebarProvider = vscode.window.registerWebviewViewProvider(
     HelixSidebarProvider.viewType,
-    new HelixSidebarProvider(context.extensionUri, new AgentRuntime()),
+    new HelixSidebarProvider(
+      context.extensionUri,
+      new AgentRuntime(),
+      new ModelConfigStore(context.secrets, context.globalState),
+    ),
   );
 
   context.subscriptions.push(helloCommand, sidebarProvider);

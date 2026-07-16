@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 
 import {
   isExtensionToWebviewMessage,
+  type ModelConfiguration,
   type WebviewToExtensionMessage,
 } from '../../shared/webview-message';
 import { vscode } from './vscode';
@@ -39,6 +40,13 @@ export function App() {
     { id: 1, role: 'assistant', content: 'Helix is ready.' },
   ]);
   const [input, setInput] = useState('');
+  const [configuration, setConfiguration] = useState<ModelConfiguration>({
+    provider: 'openai-compatible',
+    baseUrl: 'https://api.openai.com/v1',
+    modelId: '',
+  });
+  const [apiKey, setApiKey] = useState('');
+  const [configStatus, setConfigStatus] = useState('API Key not set');
 
   useEffect(() => {
     /** 将扩展端响应追加到当前消息列表。 */
@@ -46,6 +54,17 @@ export function App() {
       const message = event.data;
 
       if (!isExtensionToWebviewMessage(message)) {
+        return;
+      }
+
+      if (message.type === 'config.value' || message.type === 'config.saved') {
+        setConfiguration(message.configuration);
+        setApiKey('');
+        setConfigStatus(
+          `${message.type === 'config.saved' ? 'Saved. ' : ''}API Key ${
+            message.hasApiKey ? 'stored' : 'not set'
+          }`,
+        );
         return;
       }
 
@@ -65,8 +84,20 @@ export function App() {
     }
 
     window.addEventListener('message', handleMessage);
+    vscode.postMessage({ type: 'config.get' } satisfies WebviewToExtensionMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
+
+  function handleConfigSubmit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    const message: WebviewToExtensionMessage = {
+      type: 'config.save',
+      configuration,
+      ...(apiKey.trim().length === 0 ? {} : { apiKey }),
+    };
+    vscode.postMessage(message);
+    setConfigStatus('Saving...');
+  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -94,6 +125,66 @@ export function App() {
         <span className="eyebrow">LOCAL AGENT</span>
         <h1>Helix</h1>
       </header>
+
+      <details className="configuration">
+        <summary>Default model</summary>
+        <form onSubmit={handleConfigSubmit}>
+          <label htmlFor="helix-provider">Provider</label>
+          <select
+            id="helix-provider"
+            onChange={(event) =>
+              setConfiguration((current) => ({
+                ...current,
+                provider: event.target.value as ModelConfiguration['provider'],
+              }))
+            }
+            value={configuration.provider}
+          >
+            <option value="openai-compatible">OpenAI compatible</option>
+            <option value="anthropic-compatible">Anthropic compatible</option>
+          </select>
+
+          <label htmlFor="helix-base-url">Base URL</label>
+          <input
+            id="helix-base-url"
+            onChange={(event) =>
+              setConfiguration((current) => ({
+                ...current,
+                baseUrl: event.target.value,
+              }))
+            }
+            type="url"
+            value={configuration.baseUrl}
+          />
+
+          <label htmlFor="helix-model-id">Model ID</label>
+          <input
+            id="helix-model-id"
+            onChange={(event) =>
+              setConfiguration((current) => ({
+                ...current,
+                modelId: event.target.value,
+              }))
+            }
+            value={configuration.modelId}
+          />
+
+          <label htmlFor="helix-api-key">API Key</label>
+          <input
+            autoComplete="off"
+            id="helix-api-key"
+            onChange={(event) => setApiKey(event.target.value)}
+            placeholder="Leave blank to keep the saved key"
+            type="password"
+            value={apiKey}
+          />
+
+          <footer>
+            <span>{configStatus}</span>
+            <button type="submit">Save</button>
+          </footer>
+        </form>
+      </details>
 
       <section className="messages" aria-live="polite">
         {messages.map((message) => (
