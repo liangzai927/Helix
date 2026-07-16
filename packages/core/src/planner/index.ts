@@ -6,6 +6,10 @@ import { buildPlannerPrompt } from '@helix-agent/prompts';
 import type { AgentEvent, AgentPlan, JsonObject, JsonValue } from '@helix-agent/protocol';
 import type { ToolRegistry } from '@helix-agent/tools';
 
+import { PlanParser } from './plan-parser';
+
+export * from './plan-parser';
+
 /** Planner 收到的任务输入，后续 runtime 会在这里逐步补充更多字段。 */
 export interface PlannerTask<TInput = string> {
   input: TInput;
@@ -67,6 +71,8 @@ export class FakePlanner
 export class ModelPlanner
   implements Planner<PlannerTask<string>, PlannerContext, AgentPlan>
 {
+  private readonly planParser = new PlanParser();
+
   public constructor(
     private readonly model: BaseModel,
     private readonly toolRegistry?: ToolRegistry,
@@ -97,17 +103,10 @@ export class ModelPlanner
       ],
     });
 
-    return {
-      id: createPlannerId('plan'),
+    return this.planParser.parse(response.message.content, {
       taskId: task.taskId ?? createPlannerId('task'),
       goal: task.input,
-      createdAt: new Date().toISOString(),
-      findings: [],
-      steps: [],
-      risks: [],
-      files: [],
-      summary: response.message.content,
-    };
+    });
   }
 
   /** 按固定顺序执行目录和文本搜索，为模型构建只读上下文。 */
