@@ -1,9 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
     "outDir": "dist",
-    "types": ["node", "vscode"]
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM"],
+    "types": ["node", "vscode", "react", "react-dom"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "webview-ui/src/**/*.ts", "webview-ui/src/**/*.tsx"]
 }

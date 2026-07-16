@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import * as vscode from 'vscode';
 
 import { createSidebarHtml } from './webview-html';
@@ -6,10 +8,25 @@ import { createSidebarHtml } from './webview-html';
 export class HelixSidebarProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'helix.chat';
 
+  public constructor(private readonly extensionUri: vscode.Uri) {}
+
   public resolveWebviewView(webviewView: vscode.WebviewView): void {
-    webviewView.webview.options = {
-      enableScripts: false,
+    const webview = webviewView.webview;
+    const resourceRoot = vscode.Uri.joinPath(this.extensionUri, 'dist');
+
+    webview.options = {
+      enableScripts: true,
+      localResourceRoots: [resourceRoot],
     };
-    webviewView.webview.html = createSidebarHtml(webviewView.webview.cspSource);
+    webview.html = createSidebarHtml({
+      cspSource: webview.cspSource,
+      scriptUri: webview.asWebviewUri(
+        vscode.Uri.joinPath(resourceRoot, 'webview.js'),
+      ).toString(),
+      styleUri: webview.asWebviewUri(
+        vscode.Uri.joinPath(resourceRoot, 'webview.css'),
+      ).toString(),
+      nonce: randomBytes(16).toString('base64'),
+    });
   }
 }

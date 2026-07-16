@@ -9,7 +9,7 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   const sidebarProvider = vscode.window.registerWebviewViewProvider(
     HelixSidebarProvider.viewType,
-    new HelixSidebarProvider(),
+    new HelixSidebarProvider(context.extensionUri),
   );
 
   context.subscriptions.push(helloCommand, sidebarProvider);

@@ -1,7 +1,7 @@
 import * as esbuild from 'esbuild';
 
 const watch = process.argv.includes('--watch');
-const options = {
+const extensionOptions = {
   entryPoints: ['src/extension.ts'],
   bundle: true,
   format: 'cjs',
@@ -12,16 +12,33 @@ const options = {
   sourcemap: true,
   logLevel: 'info',
 };
+const webviewOptions = {
+  entryPoints: ['webview-ui/src/main.tsx'],
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: 'es2022',
+  outdir: 'dist',
+  entryNames: 'webview',
+  sourcemap: true,
+  logLevel: 'info',
+};
 
 /** 构建 Extension Host 入口，watch 模式供持续开发时使用。 */
 async function runBuild() {
   if (watch) {
-    const context = await esbuild.context(options);
-    await context.watch();
+    const contexts = await Promise.all([
+      esbuild.context(extensionOptions),
+      esbuild.context(webviewOptions),
+    ]);
+    await Promise.all(contexts.map((context) => context.watch()));
     return;
   }
 
-  await esbuild.build(options);
+  await Promise.all([
+    esbuild.build(extensionOptions),
+    esbuild.build(webviewOptions),
+  ]);
 }
 
 await runBuild();
