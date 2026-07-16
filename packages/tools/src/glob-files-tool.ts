@@ -1,5 +1,10 @@
 import { DEFAULT_IGNORED_DIRECTORY_NAMES } from './default-ignores';
 import type { FileSystemPort } from './file-system-port';
+import {
+  createGlobMatcher,
+  matchesAnyGlob,
+  type GlobMatcher,
+} from './glob-matcher';
 import type { Tool, ToolInputSchema } from './tool';
 
 export interface GlobFilesInput {
@@ -10,11 +15,6 @@ export interface GlobFilesInput {
 
 export interface GlobFilesOutput {
   files: string[];
-}
-
-interface GlobMatcher {
-  regex: RegExp;
-  matchBaseName: boolean;
 }
 
 const GLOB_FILES_INPUT_SCHEMA: ToolInputSchema = {
@@ -92,7 +92,7 @@ async function collectMatchingFiles(
     if (
       (entry.type === 'directory' &&
         DEFAULT_IGNORED_DIRECTORY_NAMES.has(entry.name)) ||
-      matchesAny(ignoreMatchers, relativePath, entry.name)
+      matchesAnyGlob(ignoreMatchers, relativePath, entry.name)
     ) {
       continue;
     }
@@ -108,7 +108,7 @@ async function collectMatchingFiles(
       );
     } else if (
       entry.type === 'file' &&
-      matchesAny(patternMatchers, relativePath, entry.name)
+      matchesAnyGlob(patternMatchers, relativePath, entry.name)
     ) {
       files.push(entry.path);
     }
@@ -118,57 +118,4 @@ async function collectMatchingFiles(
 /** 将目录和名称组成统一使用斜杠的相对路径。 */
 function joinRelativePath(directory: string, name: string): string {
   return directory.length === 0 ? name : `${directory}/${name}`;
-}
-
-/** 判断相对路径或文件名是否命中任意 glob 规则。 */
-function matchesAny(
-  matchers: GlobMatcher[],
-  relativePath: string,
-  baseName: string,
-): boolean {
-  return matchers.some(
-    (matcher) =>
-      matcher.regex.test(relativePath) ||
-      (matcher.matchBaseName && matcher.regex.test(baseName)),
-  );
-}
-
-/** 将 MVP 支持的星号、双星号和问号语法编译为正则。 */
-function createGlobMatcher(pattern: string): GlobMatcher {
-  const normalizedPattern = pattern.replaceAll('\\', '/').replace(/^\.\//, '');
-  let source = '^';
-
-  for (let index = 0; index < normalizedPattern.length; index += 1) {
-    const character = normalizedPattern[index];
-
-    if (character === '*' && normalizedPattern[index + 1] === '*') {
-      if (normalizedPattern[index + 2] === '/') {
-        source += '(?:.*/)?';
-        index += 2;
-      } else {
-        source += '.*';
-        index += 1;
-      }
-    } else if (character === '*') {
-      source += '[^/]*';
-    } else if (character === '?') {
-      source += '[^/]';
-    } else {
-      source += escapeRegularExpressionCharacter(character);
-    }
-  }
-
-  return {
-    regex: new RegExp(`${source}$`),
-    matchBaseName: !normalizedPattern.includes('/'),
-  };
-}
-
-/** 转义 glob 中作为普通文本的正则特殊字符。 */
-function escapeRegularExpressionCharacter(character: string | undefined): string {
-  if (character === undefined) {
-    return '';
-  }
-
-  return /[\\^$+.()|[\]{}]/.test(character) ? `\\${character}` : character;
 }

@@ -4,3 +4,4 @@ export * from './tool';
 export * from './read-file-tool';
 export * from './list-directory-tool';
 export * from './glob-files-tool';
+export * from './search-text-tool';
