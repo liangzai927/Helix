@@ -70,7 +70,11 @@ importers:
 
   packages/storage: {}
 
-  packages/tools: {}
+  packages/tools:
+    dependencies:
+      '@helix-agent/protocol':
+        specifier: workspace:*
+        version: link:../protocol
 
 packages:
 

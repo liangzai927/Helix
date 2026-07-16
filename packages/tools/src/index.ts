@@ -8,3 +8,5 @@ export * from './list-directory-tool';
 export * from './glob-files-tool';
 export * from './search-text-tool';
 export * from './get-diagnostics-tool';
+export * from './approval-port';
+export * from './apply-patch-tool';
