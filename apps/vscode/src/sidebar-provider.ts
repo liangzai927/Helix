@@ -6,13 +6,18 @@ import {
   isWebviewToExtensionMessage,
   type ExtensionToWebviewMessage,
 } from '../shared/webview-message';
+import type { AgentRuntimePort } from './run-agent-task';
+import { runAgentTask } from './run-agent-task';
 import { createSidebarHtml } from './webview-html';
 
 /** 管理 Helix Sidebar Webview 的生命周期。 */
 export class HelixSidebarProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'helix.chat';
 
-  public constructor(private readonly extensionUri: vscode.Uri) {}
+  public constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly runtime: AgentRuntimePort,
+  ) {}
 
   public resolveWebviewView(webviewView: vscode.WebviewView): void {
     const webview = webviewView.webview;
@@ -39,11 +44,19 @@ export class HelixSidebarProvider implements vscode.WebviewViewProvider {
           return;
         }
 
-        const response: ExtensionToWebviewMessage = {
-          type: 'assistant.message',
-          content: `收到：${message.content}`,
-        };
-        await webview.postMessage(response);
+        const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        await runAgentTask(
+          this.runtime,
+          message.content,
+          async (event) => {
+            const response: ExtensionToWebviewMessage = {
+              type: 'agent.event',
+              event,
+            };
+            await webview.postMessage(response);
+          },
+          cwd,
+        );
       },
     );
     webviewView.onDidDispose(() => messageSubscription.dispose());

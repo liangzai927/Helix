@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { AgentRuntime } from '@helix-agent/core';
 
 import { HelixSidebarProvider } from './sidebar-provider';
 
@@ -9,7 +10,7 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   const sidebarProvider = vscode.window.registerWebviewViewProvider(
     HelixSidebarProvider.viewType,
-    new HelixSidebarProvider(context.extensionUri),
+    new HelixSidebarProvider(context.extensionUri, new AgentRuntime()),
   );
 
   context.subscriptions.push(helloCommand, sidebarProvider);

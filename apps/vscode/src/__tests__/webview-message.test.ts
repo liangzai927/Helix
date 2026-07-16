@@ -33,4 +33,18 @@ describe('Webview 消息协议', () => {
     ).toBe(true);
     expect(isExtensionToWebviewMessage(null)).toBe(false);
   });
+
+  it('接受包含事件类型的 Agent 事件消息', () => {
+    expect(
+      isExtensionToWebviewMessage({
+        type: 'agent.event',
+        event: {
+          type: 'finished',
+          taskId: 'task-1',
+          createdAt: '2026-07-16T00:00:00.000Z',
+          status: 'finished',
+        },
+      }),
+    ).toBe(true);
+  });
 });

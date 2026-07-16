@@ -39,6 +39,12 @@ importers:
 
   apps/vscode:
     dependencies:
+      '@helix-agent/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@helix-agent/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
       react:
         specifier: ^19.2.7
         version: 19.2.7
