@@ -3,6 +3,7 @@ import { isAbsolute, resolve } from 'node:path';
 
 import type {
   AgentEvent,
+  AgentPatch,
   AgentPlan,
   JsonObject,
   JsonValue,
@@ -10,6 +11,7 @@ import type {
 } from '@helix-agent/protocol';
 import type { RegisteredTool, ToolRegistry } from '@helix-agent/tools';
 
+import type { ApprovalManagerPort } from '../approval';
 import type { RuntimeClock, RuntimeMetadata } from '../runtime/types';
 
 /** Executor 执行阶段能直接拿到的公共上下文。 */
@@ -21,6 +23,20 @@ export interface ExecutorContext {
 /** Executor 只关心如何消费 plan，并把执行过程转成事件流。 */
 export interface Executor<TPlan = unknown, TContext = ExecutorContext, TEvent = unknown> {
   execute(plan: TPlan, context: TContext): AsyncIterable<TEvent>;
+}
+
+/** 将编辑步骤转换成待审批补丁，不负责应用文件。 */
+export interface PatchGenerator {
+  generatePatch(
+    plan: AgentPlan,
+    step: PlanStep,
+    context: ExecutorContext,
+  ): Promise<AgentPatch> | AgentPatch;
+}
+
+export interface PatchWorkflowDependencies {
+  approvalManager: ApprovalManagerPort;
+  patchGenerator: PatchGenerator;
 }
 
 /** 默认执行器：消费计划并输出最小完成事件，暂不执行任何真实副作用。 */
@@ -45,6 +61,7 @@ export class PlanExecutor implements Executor<AgentPlan, ExecutorContext, AgentE
   public constructor(
     private readonly toolRegistry: ToolRegistry,
     private readonly clock?: RuntimeClock,
+    private readonly patchWorkflow?: PatchWorkflowDependencies,
   ) {}
 
   public async *execute(
@@ -61,6 +78,12 @@ export class PlanExecutor implements Executor<AgentPlan, ExecutorContext, AgentE
 
       if (step.kind === 'search') {
         yield* this.executeTool(plan, step, 'search_text', createSearchInput(step, context));
+        continue;
+      }
+
+      if (step.kind === 'edit' && this.patchWorkflow !== undefined) {
+        const applied = yield* this.executePatch(plan, step, context);
+        waiting = waiting || !applied;
         continue;
       }
 
@@ -93,8 +116,9 @@ export class PlanExecutor implements Executor<AgentPlan, ExecutorContext, AgentE
     step: PlanStep,
     toolName: string,
     input: JsonObject,
+    approvedWrite = false,
   ): AsyncIterable<AgentEvent> {
-    const tool = requireReadOnlyTool(this.toolRegistry, toolName);
+    const tool = requireExecutableTool(this.toolRegistry, toolName, approvedWrite);
     const toolCallId = `tool_call_${randomUUID()}`;
     const startedAt = this.getCreatedAt();
 
@@ -154,6 +178,74 @@ export class PlanExecutor implements Executor<AgentPlan, ExecutorContext, AgentE
     }
   }
 
+  /** 生成补丁、等待审批并在批准后调用 apply_patch。 */
+  private async *executePatch(
+    plan: AgentPlan,
+    step: PlanStep,
+    context: ExecutorContext,
+  ): AsyncGenerator<AgentEvent, boolean> {
+    const workflow = this.patchWorkflow;
+
+    if (workflow === undefined) {
+      return false;
+    }
+
+    const patch = await workflow.patchGenerator.generatePatch(plan, step, context);
+
+    if (patch.taskId !== plan.taskId) {
+      throw new Error(`补丁 ${patch.id} 不属于任务 ${plan.taskId}`);
+    }
+
+    yield {
+      type: 'patch.created',
+      taskId: plan.taskId,
+      createdAt: this.getCreatedAt(),
+      patch,
+    };
+
+    const approval = workflow.approvalManager.createApprovalRequest({
+      taskId: plan.taskId,
+      kind: 'patch',
+      title: `确认应用补丁：${step.title}`,
+      reason: patch.summary,
+      patchId: patch.id,
+    });
+
+    yield {
+      type: 'approval.requested',
+      taskId: plan.taskId,
+      createdAt: this.getCreatedAt(),
+      approval,
+    };
+
+    const resolution = await workflow.approvalManager.waitForApproval(approval.id);
+    const resolvedApproval = workflow.approvalManager.getApprovalRequest(approval.id);
+
+    yield {
+      type: 'approval.resolved',
+      taskId: plan.taskId,
+      createdAt: this.getCreatedAt(),
+      approval: resolvedApproval,
+    };
+
+    if (!resolution.approved) {
+      return false;
+    }
+
+    yield* this.executeTool(
+      plan,
+      step,
+      'apply_patch',
+      {
+        patch: requireJsonValue(patch),
+        approvalId: approval.id,
+      },
+      true,
+    );
+
+    return true;
+  }
+
   private getCreatedAt(): string {
     return new Date(this.clock?.now() ?? Date.now()).toISOString();
   }
@@ -183,16 +275,24 @@ function createSearchInput(step: PlanStep, context: ExecutorContext): JsonObject
   };
 }
 
-/** 只允许执行已注册的只读工具。 */
-function requireReadOnlyTool(toolRegistry: ToolRegistry, toolName: string): RegisteredTool {
+/** 只允许执行只读工具，或已走完审批流程的高风险工具。 */
+function requireExecutableTool(
+  toolRegistry: ToolRegistry,
+  toolName: string,
+  approvedWrite: boolean,
+): RegisteredTool {
   const tool = toolRegistry.get(toolName);
 
   if (tool === undefined) {
     throw new Error(`Executor 缺少必需工具 ${toolName}`);
   }
 
-  if (!tool.readOnly) {
+  if (!tool.readOnly && !approvedWrite) {
     throw new Error(`Executor 禁止调用非只读工具 ${toolName}`);
+  }
+
+  if (approvedWrite && !tool.requiresApproval) {
+    throw new Error(`高风险工具 ${toolName} 必须声明 requiresApproval`);
   }
 
   return tool;
