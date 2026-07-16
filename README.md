@@ -91,6 +91,15 @@ pnpm --filter helix-agent-vscode build
 
 当前 Sidebar 调用的是 Core 默认的 `FakePlanner` 和 `FakeExecutor`，模型配置尚未绑定到真实模型请求；当前输入不会修改文件或执行终端命令。
 
+### 打包与本地安装 VSIX
+
+```bash
+pnpm --filter helix-agent-vscode vsix
+code --install-extension apps/vscode/dist/helix-agent-vscode.vsix
+```
+
+重新加载 VS Code 后，从 Activity Bar 打开 Helix。VSIX 由 esbuild bundle 产物生成，不包含源码、测试、Source Map 或 `node_modules`。
+
 ### 运行 Core Demo
 
 ```bash
@@ -234,6 +243,15 @@ Open the repository in VS Code, press `F5`, and select `Run Helix Extension`. In
 Expand `Default model` to save the provider, Base URL, Model ID, and API key. VS Code `SecretStorage` stores the API key, while `globalState` stores the non-sensitive default model configuration. The UI never reads or displays the saved key in plaintext.
 
 The Sidebar currently uses Core's default `FakePlanner` and `FakeExecutor`. The saved model configuration is not connected to real model requests yet, and Sidebar input does not modify files or execute terminal commands.
+
+### Package And Install The VSIX Locally
+
+```bash
+pnpm --filter helix-agent-vscode vsix
+code --install-extension apps/vscode/dist/helix-agent-vscode.vsix
+```
+
+Reload VS Code and open Helix from the Activity Bar. The VSIX is built from the esbuild bundles and excludes source files, tests, source maps, and `node_modules`.
 
 ### Run The Core Demo
 

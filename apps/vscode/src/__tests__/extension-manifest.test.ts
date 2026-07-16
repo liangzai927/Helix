@@ -18,4 +18,14 @@ describe('VS Code 扩展清单', () => {
     expect(manifest.publisher).toBe('liangzai927');
     expect(manifest.engines.vscode).toBe('^1.100.0');
   });
+
+  it('构建后通过官方工具生成无外部依赖的 VSIX', () => {
+    expect(manifest.scripts['vscode:prepublish']).toBe(
+      'pnpm build:production',
+    );
+    expect(manifest.scripts.vsix).toContain('vsce package --no-dependencies');
+    expect(manifest.repository.url).toBe(
+      'https://github.com/liangzai927/Helix.git',
+    );
+  });
 });

@@ -5,6 +5,10 @@
   "private": true,
   "publisher": "liangzai927",
   "description": "VS Code client for Helix Agent",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/liangzai927/Helix.git"
+  },
   "categories": [
     "Other"
   ],
@@ -44,7 +48,10 @@
   },
   "scripts": {
     "build": "node esbuild.config.mjs",
+    "build:production": "node esbuild.config.mjs --production",
     "watch": "node esbuild.config.mjs --watch",
+    "vscode:prepublish": "pnpm build:production",
+    "vsix": "vsce package --no-dependencies --out dist/helix-agent-vscode.vsix",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint \"shared/**/*.ts\" \"src/**/*.ts\" \"webview-ui/src/**/*.{ts,tsx}\"",
     "test": "vitest run --passWithNoTests"
@@ -52,7 +59,8 @@
   "devDependencies": {
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@types/vscode": "^1.125.0",
+    "@types/vscode": "^1.100.0",
+    "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.1"
   },
   "dependencies": {

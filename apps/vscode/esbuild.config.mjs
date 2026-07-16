@@ -1,6 +1,7 @@
 import * as esbuild from 'esbuild';
 
 const watch = process.argv.includes('--watch');
+const production = process.argv.includes('--production');
 const extensionOptions = {
   entryPoints: ['src/extension.ts'],
   bundle: true,
@@ -9,7 +10,8 @@ const extensionOptions = {
   target: 'node20',
   outfile: 'dist/extension.js',
   external: ['vscode'],
-  sourcemap: true,
+  minify: production,
+  sourcemap: !production,
   logLevel: 'info',
 };
 const webviewOptions = {
@@ -20,7 +22,8 @@ const webviewOptions = {
   target: 'es2022',
   outdir: 'dist',
   entryNames: 'webview',
-  sourcemap: true,
+  minify: production,
+  sourcemap: !production,
   logLevel: 'info',
 };
 

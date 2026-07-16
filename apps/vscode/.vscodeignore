@@ -1,0 +1,12 @@
+.vscode/**
+node_modules/**
+shared/**
+src/**
+webview-ui/**
+dist/*.map
+dist/*.vsix
+dist/index.*
+dist/**/*.d.ts
+dist/**/*.d.ts.map
+esbuild.config.mjs
+tsconfig.json
