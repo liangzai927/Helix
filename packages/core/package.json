@@ -15,6 +15,7 @@
     "build": "tsc -p tsconfig.json",
     "demo": "node --import tsx demo/run-runtime-demo.ts",
     "demo:model": "node --import tsx demo/model-runtime-demo.ts",
+    "demo:planner": "node --import tsx demo/planner-demo.ts",
     "demo:tools": "node --import tsx demo/tool-demo.ts",
     "typecheck": "tsc -p tsconfig.demo.json --noEmit",
     "lint": "eslint \"src/**/*.ts\" \"demo/**/*.ts\"",

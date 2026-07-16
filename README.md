@@ -19,6 +19,7 @@ Helix Agent 是一个面向本地开发环境的 Agent Engine，目标是在 VS 
 - pnpm monorepo 工作区
 - Agent 协议与模型接口
 - 使用 FakePlanner 和 FakeExecutor 的最小 Core Runtime
+- 可搜索项目、解析计划和复用计划缓存的 Planner Runtime
 - 使用真实 OpenAI Compatible 模型的规划 Demo
 
 ### 核心定位
@@ -96,6 +97,14 @@ pnpm --filter @helix-agent/core demo:model -- "分析当前项目的核心模块
 
 该命令会将用户任务交给 `ModelPlanner`，并在控制台输出模型生成的计划。当前链路不调用工具，不修改文件，也不执行终端命令。
 
+### 运行 Planner 验收 Demo
+
+```bash
+pnpm --filter @helix-agent/core demo:planner
+```
+
+该 Demo 不需要 API Key。它会使用真实文件系统只读工具探索仓库，输出 `tool.call.started`、`tool.call.finished` 和 `plan.created`，再按计划执行只读步骤。相同需求会连续运行两次，第二次输出 `[cache.hit] true`，证明计划已从内存缓存复用；修改和命令步骤仍只进入等待状态，不会改变文件或执行命令。
+
 ### 文档入口
 
 - [项目愿景](docs/00-项目愿景.md)
@@ -106,7 +115,8 @@ pnpm --filter @helix-agent/core demo:model -- "分析当前项目的核心模块
 - 仓库已初始化并已推送远端
 - Core Runtime 已可通过控制台 Demo 独立运行
 - Core Runtime 已可通过 `ModelPlanner` 调用真实 OpenAI Compatible 模型
-- Executor 当前仍为固定行为的 Fake 实现
+- Core Runtime 已支持只读项目探索、结构化计划解析、计划缓存和只读步骤执行
+- 修改文件和命令执行当前仍只输出等待状态
 - CLI、Desktop 和 VS Code 目前只有工作区脚手架，尚未接入 Core Runtime
 
 ---
@@ -126,6 +136,7 @@ This repository is still in an early stage. It now includes protocol types, mode
 - A pnpm monorepo workspace
 - Agent protocol and model interfaces
 - A minimal Core Runtime using FakePlanner and FakeExecutor
+- A Planner Runtime that can search projects, parse plans, and reuse cached plans
 - A planning demo backed by a real OpenAI-compatible model
 
 ### Core Positioning
@@ -203,6 +214,14 @@ pnpm --filter @helix-agent/core demo:model -- "Analyze the core modules in this 
 
 This command sends the user task to `ModelPlanner` and prints the model-generated plan. The current flow does not call tools, modify files, or execute terminal commands.
 
+### Run The Planner Acceptance Demo
+
+```bash
+pnpm --filter @helix-agent/core demo:planner
+```
+
+This demo requires no API key. It explores the repository through real read-only file-system tools, prints `tool.call.started`, `tool.call.finished`, and `plan.created`, then executes the read-only plan steps. It runs the same request twice and prints `[cache.hit] true` on the second run to confirm in-memory plan reuse. Edit and command steps only enter a waiting state, so the demo does not modify files or run commands.
+
 ### Documents
 
 - [Project Vision](docs/00-项目愿景.md)
@@ -213,5 +232,6 @@ This command sends the user task to `ModelPlanner` and prints the model-generate
 - The repository has been initialized and pushed to the remote
 - The Core Runtime can now run independently through the console demo
 - The Core Runtime can now call a real OpenAI-compatible model through `ModelPlanner`
-- Executor is still a deterministic fake implementation
+- The Core Runtime supports read-only project exploration, structured plan parsing, plan caching, and read-only step execution
+- File edits and command execution currently only emit a waiting state
 - CLI, Desktop, and VS Code currently remain workspace scaffolds and are not connected to the Core Runtime

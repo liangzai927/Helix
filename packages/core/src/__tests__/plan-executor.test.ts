@@ -89,7 +89,7 @@ describe('PlanExecutor', () => {
     const events = await collectEvents(executor.execute(plan, { cwd: '/project' }));
 
     expect(executionOrder).toEqual([
-      'read:src/index.ts',
+      'read:/project/src/index.ts',
       'search:AgentRuntime:/project',
     ]);
     expect(events.map((event) => event.type)).toEqual([

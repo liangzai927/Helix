@@ -185,4 +185,70 @@ describe('AgentRuntime', () => {
       },
     });
   });
+
+  it('passes runtime options to the task, planner and executor', async () => {
+    let plannerContext: unknown;
+    let executorContext: unknown;
+    const planner: Planner = {
+      createPlan(task, context) {
+        plannerContext = { task, context };
+
+        return {
+          id: 'plan_1',
+          taskId: task.taskId ?? 'task_missing',
+          goal: task.input,
+          createdAt: '2026-07-16T09:00:00.000Z',
+          findings: [],
+          steps: [],
+          risks: [],
+          files: [],
+        } satisfies AgentPlan;
+      },
+    };
+    const executor: Executor<AgentPlan, ExecutorContext, AgentEvent> = {
+      async *execute(plan, context) {
+        executorContext = context;
+        yield {
+          type: 'finished',
+          taskId: plan.taskId,
+          createdAt: '2026-07-16T09:00:00.000Z',
+          status: 'finished',
+        };
+      },
+    };
+    const runtime = new AgentRuntime({ planner, executor });
+
+    const events = await collectEvents(
+      runtime.run('分析项目', {
+        taskId: 'task_fixed',
+        conversationId: 'conversation_fixed',
+        cwd: '/project',
+        mode: 'plan',
+        metadata: { source: 'test' },
+      }),
+    );
+
+    expect(events[0]).toMatchObject({
+      type: 'task.created',
+      task: {
+        id: 'task_fixed',
+        conversationId: 'conversation_fixed',
+        mode: 'plan',
+      },
+    });
+    expect(plannerContext).toMatchObject({
+      task: {
+        cwd: '/project',
+        metadata: { source: 'test' },
+      },
+      context: {
+        cwd: '/project',
+        metadata: { source: 'test' },
+      },
+    });
+    expect(executorContext).toEqual({
+      cwd: '/project',
+      metadata: { source: 'test' },
+    });
+  });
 });

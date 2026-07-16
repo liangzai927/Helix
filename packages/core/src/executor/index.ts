@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { isAbsolute, resolve } from 'node:path';
 
 import type {
   AgentEvent,
@@ -54,7 +55,7 @@ export class PlanExecutor implements Executor<AgentPlan, ExecutorContext, AgentE
 
     for (const step of plan.steps) {
       if (step.kind === 'read') {
-        yield* this.executeTool(plan, step, 'read_file', createReadInput(step));
+        yield* this.executeTool(plan, step, 'read_file', createReadInput(step, context));
         continue;
       }
 
@@ -159,14 +160,19 @@ export class PlanExecutor implements Executor<AgentPlan, ExecutorContext, AgentE
 }
 
 /** read 步骤必须显式携带目标文件，避免把自然语言标题误当路径。 */
-function createReadInput(step: PlanStep): JsonObject {
+function createReadInput(step: PlanStep, context: ExecutorContext): JsonObject {
   const path = step.filePaths?.[0];
 
   if (path === undefined) {
     throw new Error(`读取步骤“${step.title}”缺少文件路径`);
   }
 
-  return { path };
+  return {
+    path:
+      context.cwd !== undefined && !isAbsolute(path)
+        ? resolve(context.cwd, path)
+        : path,
+  };
 }
 
 /** search 步骤优先使用描述作为查询词，并透传运行目录。 */

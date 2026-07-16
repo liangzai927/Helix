@@ -11,6 +11,9 @@ import { ModeSelector } from './mode-selector';
 import { RuntimeState } from './state';
 import {
   defineRuntimeDependencies,
+  resolveAgentRuntimeOptions,
+  type AgentRuntimeOptions,
+  type ResolvedAgentRuntimeOptions,
   type RuntimeDependencies,
   type RuntimeIdGenerator,
 } from './types';
@@ -39,8 +42,15 @@ export class AgentRuntime {
     return this.dependencies.toolRegistry?.list() ?? [];
   }
 
-  public async *run(input: string): AsyncIterable<AgentEvent> {
-    const task = this.createTask(input);
+  public async *run(
+    input: string,
+    options?: AgentRuntimeOptions,
+  ): AsyncIterable<AgentEvent> {
+    const resolvedOptions = {
+      ...resolveAgentRuntimeOptions(options),
+      mode: options?.mode ?? this.modeSelector.select(input),
+    };
+    const task = this.createTask(input, resolvedOptions);
     const state = new RuntimeState({
       taskId: task.id,
       initialStatus: task.status,
@@ -57,7 +67,7 @@ export class AgentRuntime {
     yield state.setStatus('creating_task', '正在创建任务');
     yield state.setStatus('planning', '正在生成计划');
 
-    const { plan, events: plannerEvents } = await this.createPlan(task);
+    const { plan, events: plannerEvents } = await this.createPlan(task, resolvedOptions);
 
     for (const event of plannerEvents) {
       yield event;
@@ -72,21 +82,24 @@ export class AgentRuntime {
 
     yield state.setStatus('executing', '正在执行计划');
 
-    for await (const event of this.executor.execute(plan, {})) {
+    for await (const event of this.executor.execute(plan, {
+      ...(resolvedOptions.cwd === undefined ? {} : { cwd: resolvedOptions.cwd }),
+      metadata: resolvedOptions.metadata,
+    })) {
       yield event;
     }
   }
 
-  private createTask(input: string): AgentTask {
+  private createTask(input: string, options: ResolvedAgentRuntimeOptions): AgentTask {
     const createdAt = this.getCreatedAt();
 
     return {
-      id: this.createId('task'),
-      conversationId: this.createId('conversation'),
+      id: options.taskId ?? this.createId('task'),
+      conversationId: options.conversationId ?? this.createId('conversation'),
       input,
       createdAt,
       updatedAt: createdAt,
-      mode: this.modeSelector.select(input),
+      mode: options.mode,
       status: 'idle',
       title: this.createTaskTitle(input),
     };
@@ -94,6 +107,7 @@ export class AgentRuntime {
 
   private async createPlan(
     task: AgentTask,
+    options: ResolvedAgentRuntimeOptions,
   ): Promise<{ plan: AgentPlan; events: AgentEvent[] }> {
     const taskKey = createPlanCacheKey(task.input);
     const cachedPlan = this.planCache.get(taskKey);
@@ -114,8 +128,12 @@ export class AgentRuntime {
         input: task.input,
         taskId: task.id,
         conversationId: task.conversationId,
+        ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
+        metadata: options.metadata,
       },
       {
+        ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
+        metadata: options.metadata,
         emitEvent(event) {
           events.push(event);
         },
