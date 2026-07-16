@@ -166,4 +166,23 @@ describe('AgentRuntime', () => {
       summary: 'executor override',
     });
   });
+
+  it('creates a plan-mode task for an explicit planning request', async () => {
+    const runtime = new AgentRuntime({
+      idGenerator: {
+        next(prefix?: string) {
+          return `${prefix ?? 'id'}_1`;
+        },
+      },
+    });
+
+    const events = await collectEvents(runtime.run('先分析问题，不要改'));
+
+    expect(events[0]).toMatchObject({
+      type: 'task.created',
+      task: {
+        mode: 'plan',
+      },
+    });
+  });
 });

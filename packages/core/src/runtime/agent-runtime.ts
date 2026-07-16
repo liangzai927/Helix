@@ -6,9 +6,9 @@ import type { ToolDescriptor } from '@helix-agent/tools';
 import { FakeExecutor, type Executor, type ExecutorContext } from '../executor';
 import { FakePlanner, type Planner, type PlannerContext, type PlannerTask } from '../planner';
 
+import { ModeSelector } from './mode-selector';
 import { RuntimeState } from './state';
 import {
-  DEFAULT_AGENT_RUNTIME_MODE,
   defineRuntimeDependencies,
   type RuntimeDependencies,
   type RuntimeIdGenerator,
@@ -22,6 +22,7 @@ export class AgentRuntime {
   private readonly dependencies: RuntimeDependencies;
   private readonly planner: RuntimePlanner;
   private readonly executor: RuntimeExecutor;
+  private readonly modeSelector = new ModeSelector();
 
   public constructor(dependencies: RuntimeDependencies = {}) {
     this.dependencies = defineRuntimeDependencies(dependencies);
@@ -83,7 +84,7 @@ export class AgentRuntime {
       input,
       createdAt,
       updatedAt: createdAt,
-      mode: DEFAULT_AGENT_RUNTIME_MODE,
+      mode: this.modeSelector.select(input),
       status: 'idle',
       title: this.createTaskTitle(input),
     };
