@@ -9,6 +9,7 @@ export interface ReadFileInput {
 }
 
 export interface ReadFileOutput {
+  path: string;
   content: string;
   lineCount: number;
   truncated: boolean;
@@ -66,6 +67,7 @@ export class ReadFileTool implements Tool<ReadFileInput, ReadFileOutput> {
     const truncated = selectedContent.length > maxChars;
 
     return {
+      path: input.path,
       content: truncated ? selectedContent.slice(0, maxChars) : selectedContent,
       lineCount: lines.length,
       truncated,

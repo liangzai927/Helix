@@ -53,6 +53,7 @@ describe('ReadFileTool', () => {
     );
 
     await expect(tool.execute({ path: '/project/example.ts' })).resolves.toEqual({
+      path: '/project/example.ts',
       content: 'first line\nsecond line\nthird line',
       lineCount: 3,
       truncated: false,
@@ -71,6 +72,7 @@ describe('ReadFileTool', () => {
         endLine: 3,
       }),
     ).resolves.toEqual({
+      path: '/project/example.ts',
       content: 'second line\nthird line',
       lineCount: 4,
       truncated: false,
@@ -86,6 +88,7 @@ describe('ReadFileTool', () => {
         maxChars: 5,
       }),
     ).resolves.toEqual({
+      path: '/project/example.ts',
       content: '12345',
       lineCount: 1,
       truncated: true,

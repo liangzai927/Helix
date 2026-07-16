@@ -4,8 +4,10 @@ import type { AgentPlan, Message, ToolResult } from '@helix-agent/protocol';
 import type { RuntimeMetadata } from '../runtime';
 
 import { ContextBudget } from './context-budget';
+import { ToolOutputCompressor } from './tool-output-compressor';
 
 export * from './context-budget';
+export * from './tool-output-compressor';
 
 /** Runtime 在构建上下文时会汇总的最小快照。 */
 export interface RuntimeContextSnapshot<TMessage = unknown, TToolResult = unknown> {
@@ -30,6 +32,7 @@ export interface DefaultContextBuilderInput {
 export interface DefaultContextBuilderOptions {
   recentMessageLimit?: number;
   contextBudget?: ContextBudget;
+  toolOutputCompressor?: ToolOutputCompressor;
 }
 
 /** 将会话、工具摘要和缓存计划整理成模型请求。 */
@@ -38,10 +41,13 @@ export class DefaultContextBuilder
 {
   private readonly recentMessageLimit: number;
   private readonly contextBudget: ContextBudget | undefined;
+  private readonly toolOutputCompressor: ToolOutputCompressor;
 
   public constructor(options: DefaultContextBuilderOptions = {}) {
     this.recentMessageLimit = options.recentMessageLimit ?? 6;
     this.contextBudget = options.contextBudget;
+    this.toolOutputCompressor =
+      options.toolOutputCompressor ?? new ToolOutputCompressor();
 
     if (!Number.isInteger(this.recentMessageLimit) || this.recentMessageLimit < 0) {
       throw new Error('recentMessageLimit 必须是大于等于 0 的整数');
@@ -64,7 +70,11 @@ export class DefaultContextBuilder
         : input.conversation.slice(-this.recentMessageLimit);
 
     messages.push(...recentConversation.map(convertConversationMessage));
-    messages.push(...input.toolResults.map(convertToolResult));
+    messages.push(
+      ...input.toolResults.map((result) =>
+        convertToolResult(result, this.toolOutputCompressor),
+      ),
+    );
     messages.push({ role: 'user', content: input.userInput });
 
     return {
@@ -83,10 +93,13 @@ function convertConversationMessage(message: Message): ModelMessage {
 }
 
 /** 工具上下文只保留摘要，避免原始输出直接进入 Prompt。 */
-function convertToolResult(result: ToolResult): ModelMessage {
+function convertToolResult(
+  result: ToolResult,
+  compressor: ToolOutputCompressor,
+): ModelMessage {
   return {
     role: 'tool',
-    content: result.summary,
+    content: compressor.toContextText(result),
     name: result.toolName,
     toolCallId: result.toolCallId,
   };
