@@ -53,6 +53,10 @@ describe('core runtime contracts', () => {
       listMessages() {
         return [];
       },
+      getRecentMessages() {
+        return [];
+      },
+      clear() {},
     };
 
     const approvalManager = new ApprovalManager();
