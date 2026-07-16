@@ -10,7 +10,7 @@
 
 Helix Agent 是一个面向本地开发环境的 Agent Engine，目标是在 VS Code 中完成从代码理解、任务规划、补丁生成到受控命令执行的完整闭环。
 
-当前仓库仍处于早期阶段，已经具备协议类型、模型接口和可独立运行的 Core Runtime 控制台 Demo，但还不是完整的 VS Code Agent 产品。
+当前仓库仍处于早期阶段，已经具备协议类型、模型接口、可独立运行的 Core Runtime 控制台 Demo，以及可通过 F5 启动的 VS Code Sidebar 客户端。
 
 ### 当前仓库包含
 
@@ -21,6 +21,7 @@ Helix Agent 是一个面向本地开发环境的 Agent Engine，目标是在 VS 
 - 使用 FakePlanner 和 FakeExecutor 的最小 Core Runtime
 - 可搜索项目、解析计划和复用计划缓存的 Planner Runtime
 - 使用真实 OpenAI Compatible 模型的规划 Demo
+- 可调用 Core Runtime 并展示事件流的 VS Code Sidebar
 
 ### 核心定位
 
@@ -73,9 +74,24 @@ MVP 版本聚焦一个最小但完整的开发闭环，让用户可以在 VS Cod
 └── README.md
 ```
 
-### 运行 Core Demo
+### 环境要求
 
-环境要求：Node.js 24.x、pnpm 11.13.0+（11.x）。
+Node.js 24.x、pnpm 11.13.0+（11.x）。
+
+### 运行 VS Code 扩展
+
+```bash
+pnpm install
+pnpm --filter helix-agent-vscode build
+```
+
+使用 VS Code 打开仓库后按 `F5`，选择 `Run Helix Extension`。在新打开的 Extension Development Host 中点击 Activity Bar 的 Helix 图标，即可打开 Sidebar、输入消息并查看 Core Runtime 事件流。
+
+展开 `Default model` 可保存 provider、Base URL、Model ID 和 API Key。API Key 由 VS Code `SecretStorage` 保存，非敏感默认模型配置保存在 `globalState`，界面不会读取或显示已保存的密钥明文。
+
+当前 Sidebar 调用的是 Core 默认的 `FakePlanner` 和 `FakeExecutor`，模型配置尚未绑定到真实模型请求；当前输入不会修改文件或执行终端命令。
+
+### 运行 Core Demo
 
 ```bash
 pnpm install
@@ -127,7 +143,8 @@ pnpm --filter @helix-agent/core demo:patch-terminal
 - Core Runtime 已支持补丁审批应用和低风险终端命令执行
 - 中高风险命令仍会进入等待状态，不会绕过审批执行
 - Core 已支持内存会话、最近消息选择、上下文字符预算和工具输出压缩
-- CLI、Desktop 和 VS Code 目前只有工作区脚手架，尚未接入 Core Runtime
+- VS Code Sidebar 已支持输入消息、调用 Core Runtime、展示事件流和安全保存默认模型配置
+- CLI 和 Desktop 目前仍只有工作区脚手架
 
 ---
 
@@ -137,7 +154,7 @@ pnpm --filter @helix-agent/core demo:patch-terminal
 
 Helix Agent is an agent engine for local development environments. Its goal is to deliver a full loop inside VS Code, from code understanding and task planning to patch generation and controlled command execution.
 
-This repository is still in an early stage. It now includes protocol types, model interfaces, and a standalone Core Runtime console demo, but it is not yet a complete VS Code agent product.
+This repository is still in an early stage. It now includes protocol types, model interfaces, a standalone Core Runtime console demo, and a VS Code Sidebar client that can be launched with F5.
 
 ### What Is In This Repository
 
@@ -148,6 +165,7 @@ This repository is still in an early stage. It now includes protocol types, mode
 - A minimal Core Runtime using FakePlanner and FakeExecutor
 - A Planner Runtime that can search projects, parse plans, and reuse cached plans
 - A planning demo backed by a real OpenAI-compatible model
+- A VS Code Sidebar that calls Core Runtime and displays its event stream
 
 ### Core Positioning
 
@@ -200,9 +218,24 @@ The MVP focuses on a minimal but complete developer workflow inside VS Code. Use
 └── README.md
 ```
 
-### Run The Core Demo
+### Requirements
 
-Requirements: Node.js 24.x and pnpm 11.13.0+ (11.x).
+Node.js 24.x and pnpm 11.13.0+ (11.x).
+
+### Run The VS Code Extension
+
+```bash
+pnpm install
+pnpm --filter helix-agent-vscode build
+```
+
+Open the repository in VS Code, press `F5`, and select `Run Helix Extension`. In the new Extension Development Host window, select the Helix icon in the Activity Bar to open the Sidebar, submit a message, and inspect the Core Runtime event stream.
+
+Expand `Default model` to save the provider, Base URL, Model ID, and API key. VS Code `SecretStorage` stores the API key, while `globalState` stores the non-sensitive default model configuration. The UI never reads or displays the saved key in plaintext.
+
+The Sidebar currently uses Core's default `FakePlanner` and `FakeExecutor`. The saved model configuration is not connected to real model requests yet, and Sidebar input does not modify files or execute terminal commands.
+
+### Run The Core Demo
 
 ```bash
 pnpm install
@@ -254,4 +287,5 @@ This demo requires no API key. The Runtime creates a patch for a file in a syste
 - The Core Runtime supports approved patch application and low-risk terminal commands
 - Medium and high-risk commands remain in a waiting state and cannot bypass approval
 - Core supports in-memory conversations, recent-message selection, character budgets, and compressed tool context
-- CLI, Desktop, and VS Code currently remain workspace scaffolds and are not connected to the Core Runtime
+- The VS Code Sidebar supports message input, Core Runtime calls, event display, and secure default model configuration
+- CLI and Desktop currently remain workspace scaffolds
