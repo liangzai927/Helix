@@ -3,6 +3,7 @@ import { AgentRuntime } from '@helix-agent/core';
 
 import { HelixSidebarProvider } from './sidebar-provider';
 import { ModelConfigStore } from './model-config-store';
+import { VsCodeDiffPreview } from './vscode-diff-preview';
 
 /** 激活 Helix Agent Extension 并注册基础命令。 */
 export function activate(context: vscode.ExtensionContext): void {
@@ -15,6 +16,7 @@ export function activate(context: vscode.ExtensionContext): void {
       context.extensionUri,
       new AgentRuntime(),
       new ModelConfigStore(context.secrets, context.globalState),
+      new VsCodeDiffPreview(),
     ),
   );
 

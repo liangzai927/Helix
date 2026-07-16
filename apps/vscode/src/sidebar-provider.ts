@@ -7,6 +7,7 @@ import {
   type ExtensionToWebviewMessage,
 } from '../shared/webview-message';
 import { ModelConfigStore } from './model-config-store';
+import type { DiffPreviewPort } from './patch-preview';
 import type { AgentRuntimePort } from './run-agent-task';
 import { runAgentTask } from './run-agent-task';
 import { createSidebarHtml } from './webview-html';
@@ -19,6 +20,7 @@ export class HelixSidebarProvider implements vscode.WebviewViewProvider {
     private readonly extensionUri: vscode.Uri,
     private readonly runtime: AgentRuntimePort,
     private readonly modelConfigStore: ModelConfigStore,
+    private readonly diffPreview: DiffPreviewPort,
   ) {}
 
   public resolveWebviewView(webviewView: vscode.WebviewView): void {
@@ -66,6 +68,10 @@ export class HelixSidebarProvider implements vscode.WebviewViewProvider {
           this.runtime,
           message.content,
           async (event) => {
+            if (event.type === 'patch.created') {
+              await this.diffPreview.openPatch(event.patch, cwd);
+            }
+
             const response: ExtensionToWebviewMessage = {
               type: 'agent.event',
               event,
