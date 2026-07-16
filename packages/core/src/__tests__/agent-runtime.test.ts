@@ -87,8 +87,8 @@ describe('AgentRuntime', () => {
     expect(events[4]).toMatchObject({
       type: 'status.changed',
       taskId: 'task_1',
-      status: 'finished',
-      message: '任务执行完成',
+      status: 'executing',
+      message: '正在执行计划',
     });
 
     expect(events[5]).toMatchObject({

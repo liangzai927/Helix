@@ -4,6 +4,7 @@ import type { AgentEvent, AgentPlan, AgentTask } from '@helix-agent/protocol';
 import type { ToolDescriptor } from '@helix-agent/tools';
 
 import { FakeExecutor, type Executor, type ExecutorContext } from '../executor';
+import { createPlanCacheKey, PlanCache } from '../memory';
 import { FakePlanner, type Planner, type PlannerContext, type PlannerTask } from '../planner';
 
 import { ModeSelector } from './mode-selector';
@@ -23,6 +24,7 @@ export class AgentRuntime {
   private readonly planner: RuntimePlanner;
   private readonly executor: RuntimeExecutor;
   private readonly modeSelector = new ModeSelector();
+  private readonly planCache = new PlanCache<AgentPlan>();
 
   public constructor(dependencies: RuntimeDependencies = {}) {
     this.dependencies = defineRuntimeDependencies(dependencies);
@@ -68,7 +70,7 @@ export class AgentRuntime {
       plan,
     };
 
-    yield state.setStatus('finished', '任务执行完成');
+    yield state.setStatus('executing', '正在执行计划');
 
     for await (const event of this.executor.execute(plan, {})) {
       yield event;
@@ -93,6 +95,19 @@ export class AgentRuntime {
   private async createPlan(
     task: AgentTask,
   ): Promise<{ plan: AgentPlan; events: AgentEvent[] }> {
+    const taskKey = createPlanCacheKey(task.input);
+    const cachedPlan = this.planCache.get(taskKey);
+
+    if (cachedPlan !== undefined) {
+      return {
+        plan: {
+          ...cachedPlan,
+          taskId: task.id,
+        },
+        events: [],
+      };
+    }
+
     const events: AgentEvent[] = [];
     const plan = await this.planner.createPlan(
       {
@@ -106,6 +121,8 @@ export class AgentRuntime {
         },
       },
     );
+
+    this.planCache.set(taskKey, plan);
 
     return { plan, events };
   }
