@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { AgentEvent, AgentPlan } from '@helix-agent/protocol';
 import { ToolRegistry } from '@helix-agent/tools';
 
-import { PlanExecutor } from '../index';
+import { ApprovalManager, PlanExecutor } from '../index';
 
 /** 收集命令执行事件，验证完整事件顺序。 */
 async function collectEvents(iterable: AsyncIterable<AgentEvent>): Promise<AgentEvent[]> {
@@ -85,5 +85,60 @@ describe('PlanExecutor command workflow', () => {
         summary: '命令执行成功',
       },
     });
+  });
+
+  it('等待中风险命令审批并在批准后继续执行', async () => {
+    const toolRegistry = new ToolRegistry();
+    const approvalManager = new ApprovalManager({
+      idGenerator: { next: () => 'approval-1' },
+    });
+    toolRegistry.register({
+      name: 'run_terminal',
+      description: 'Run terminal command',
+      inputSchema: { type: 'object' },
+      readOnly: false,
+      requiresApproval: true,
+      requiresApprovalFor: () => true,
+      async execute() {
+        return { exitCode: 0, stdout: '', stderr: '', summary: '命令执行成功' };
+      },
+    });
+    const plan: AgentPlan = {
+      id: 'plan-1',
+      taskId: 'task-1',
+      goal: '运行测试',
+      createdAt: '2026-07-16T09:00:00.000Z',
+      findings: [],
+      steps: [
+        {
+          id: 'step-1',
+          title: '执行命令：pnpm test',
+          description: 'pnpm test',
+          kind: 'command',
+          status: 'pending',
+        },
+      ],
+      risks: [],
+      files: [],
+    };
+    const executor = new PlanExecutor(toolRegistry, undefined, {
+      approvalManager,
+      patchGenerator: { generatePatch: () => { throw new Error('不应生成补丁'); } },
+    });
+    const collecting = collectEvents(executor.execute(plan, { cwd: '/project' }));
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    approvalManager.approve('approval-1');
+
+    const events = await collecting;
+
+    expect(events.map((event) => event.type)).toEqual([
+      'approval.requested',
+      'approval.resolved',
+      'command.started',
+      'tool.call.started',
+      'tool.call.finished',
+      'command.finished',
+      'finished',
+    ]);
   });
 });

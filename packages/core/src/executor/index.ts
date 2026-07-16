@@ -14,6 +14,8 @@ import type { RegisteredTool, ToolRegistry } from '@helix-agent/tools';
 import type { ApprovalManagerPort } from '../approval';
 import type { RuntimeClock, RuntimeMetadata } from '../runtime/types';
 
+export * from './model-patch-generator';
+
 /** Executor 执行阶段能直接拿到的公共上下文。 */
 export interface ExecutorContext {
   cwd?: string;
@@ -209,14 +211,43 @@ export class PlanExecutor implements Executor<AgentPlan, ExecutorContext, AgentE
       tool.requiresApprovalFor?.(input) ?? tool.requiresApproval;
 
     if (requiresApproval) {
+      const approvalManager = this.patchWorkflow?.approvalManager;
+
+      if (approvalManager === undefined) {
+        yield {
+          type: 'status.changed',
+          taskId: plan.taskId,
+          createdAt: this.getCreatedAt(),
+          status: 'waiting_approval',
+          message: `步骤“${step.title}”等待命令审批`,
+        };
+        return false;
+      }
+
+      const approval = approvalManager.createApprovalRequest({
+        taskId: plan.taskId,
+        kind: 'command',
+        title: `确认执行命令：${command}`,
+        reason: '该命令不在低风险只读白名单中',
+        command,
+      });
       yield {
-        type: 'status.changed',
+        type: 'approval.requested',
         taskId: plan.taskId,
         createdAt: this.getCreatedAt(),
-        status: 'waiting_approval',
-        message: `步骤“${step.title}”等待命令审批`,
+        approval,
       };
-      return false;
+      const resolution = await approvalManager.waitForApproval(approval.id);
+      yield {
+        type: 'approval.resolved',
+        taskId: plan.taskId,
+        createdAt: this.getCreatedAt(),
+        approval: approvalManager.getApprovalRequest(approval.id),
+      };
+
+      if (!resolution.approved) {
+        return false;
+      }
     }
 
     yield {

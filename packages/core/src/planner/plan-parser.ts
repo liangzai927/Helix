@@ -40,18 +40,27 @@ export class PlanParser {
       files,
       steps: stepTitles.map((title) => {
         const kind = inferStepKind(title);
+        const command = parseCommand(title);
 
         return {
           id: `step_${randomUUID()}`,
           title,
           kind,
           status: 'pending',
-          ...(kind === 'read' && files.length > 0 ? { filePaths: files } : {}),
+          ...((kind === 'read' || kind === 'edit') && files.length > 0
+            ? { filePaths: files }
+            : {}),
+          ...(command === undefined ? {} : { description: command }),
         };
       }),
       risks: parseSectionItems(sections.get('风险点') ?? ''),
     };
   }
+}
+
+/** 从“执行命令：...”步骤中提取可直接交给终端的命令文本。 */
+function parseCommand(title: string): string | undefined {
+  return /^执行命令[：:]\s*(.+)$/u.exec(title)?.[1]?.trim();
 }
 
 /** 创建解析成功和回退计划共用的稳定基础结构。 */

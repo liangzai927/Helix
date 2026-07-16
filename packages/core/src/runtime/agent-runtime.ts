@@ -80,6 +80,17 @@ export class AgentRuntime {
       plan,
     };
 
+    if (resolvedOptions.mode === 'plan') {
+      yield {
+        type: 'finished',
+        taskId: task.id,
+        createdAt: this.getCreatedAt(),
+        status: 'finished',
+        ...(plan.summary === undefined ? {} : { summary: plan.summary }),
+      };
+      return;
+    }
+
     yield state.setStatus('executing', '正在执行计划');
 
     for await (const event of this.executor.execute(plan, {

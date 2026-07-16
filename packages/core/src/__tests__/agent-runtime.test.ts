@@ -184,6 +184,10 @@ describe('AgentRuntime', () => {
         mode: 'plan',
       },
     });
+    expect(events).not.toContainEqual(
+      expect.objectContaining({ type: 'status.changed', status: 'executing' }),
+    );
+    expect(events.at(-1)?.type).toBe('finished');
   });
 
   it('passes runtime options to the task, planner and executor', async () => {
@@ -223,7 +227,7 @@ describe('AgentRuntime', () => {
         taskId: 'task_fixed',
         conversationId: 'conversation_fixed',
         cwd: '/project',
-        mode: 'plan',
+        mode: 'execute',
         metadata: { source: 'test' },
       }),
     );
@@ -233,7 +237,7 @@ describe('AgentRuntime', () => {
       task: {
         id: 'task_fixed',
         conversationId: 'conversation_fixed',
-        mode: 'plan',
+        mode: 'execute',
       },
     });
     expect(plannerContext).toMatchObject({
