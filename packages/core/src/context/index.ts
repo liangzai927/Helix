@@ -3,6 +3,10 @@ import type { AgentPlan, Message, ToolResult } from '@helix-agent/protocol';
 
 import type { RuntimeMetadata } from '../runtime';
 
+import { ContextBudget } from './context-budget';
+
+export * from './context-budget';
+
 /** Runtime 在构建上下文时会汇总的最小快照。 */
 export interface RuntimeContextSnapshot<TMessage = unknown, TToolResult = unknown> {
   cwd?: string;
@@ -25,6 +29,7 @@ export interface DefaultContextBuilderInput {
 
 export interface DefaultContextBuilderOptions {
   recentMessageLimit?: number;
+  contextBudget?: ContextBudget;
 }
 
 /** 将会话、工具摘要和缓存计划整理成模型请求。 */
@@ -32,9 +37,11 @@ export class DefaultContextBuilder
   implements ContextBuilder<DefaultContextBuilderInput, ModelRequest>
 {
   private readonly recentMessageLimit: number;
+  private readonly contextBudget: ContextBudget | undefined;
 
   public constructor(options: DefaultContextBuilderOptions = {}) {
     this.recentMessageLimit = options.recentMessageLimit ?? 6;
+    this.contextBudget = options.contextBudget;
 
     if (!Number.isInteger(this.recentMessageLimit) || this.recentMessageLimit < 0) {
       throw new Error('recentMessageLimit 必须是大于等于 0 的整数');
@@ -60,7 +67,9 @@ export class DefaultContextBuilder
     messages.push(...input.toolResults.map(convertToolResult));
     messages.push({ role: 'user', content: input.userInput });
 
-    return { messages };
+    return {
+      messages: this.contextBudget?.trim(messages) ?? messages,
+    };
   }
 }
 
