@@ -1,3 +1,4 @@
+import { DEFAULT_IGNORED_DIRECTORY_NAMES } from './default-ignores';
 import type { FileSystemEntry, FileSystemPort } from './file-system-port';
 import type { Tool, ToolInputSchema } from './tool';
 
@@ -8,8 +9,6 @@ export interface ListDirectoryInput {
 export interface ListDirectoryOutput {
   entries: FileSystemEntry[];
 }
-
-const DEFAULT_IGNORED_NAMES = new Set(['node_modules', '.git', 'dist', 'build']);
 
 const LIST_DIRECTORY_INPUT_SCHEMA: ToolInputSchema = {
   type: 'object',
@@ -37,7 +36,9 @@ export class ListDirectoryTool
     const entries = await this.fileSystem.listDirectory(input.path);
 
     return {
-      entries: entries.filter((entry) => !DEFAULT_IGNORED_NAMES.has(entry.name)),
+      entries: entries.filter(
+        (entry) => !DEFAULT_IGNORED_DIRECTORY_NAMES.has(entry.name),
+      ),
     };
   }
 }
