@@ -19,6 +19,7 @@ Helix Agent 是一个面向本地开发环境的 Agent Engine，目标是在 VS 
 - pnpm monorepo 工作区
 - Agent 协议与模型接口
 - 使用 FakePlanner 和 FakeExecutor 的最小 Core Runtime
+- 使用真实 OpenAI Compatible 模型的规划 Demo
 
 ### 核心定位
 
@@ -82,6 +83,19 @@ pnpm --filter @helix-agent/core demo
 
 控制台输出的完整事件流包含 `task.created`、`status.changed`、`plan.created` 和 `finished`。当前 Demo 只使用 FakePlanner 和 FakeExecutor，不执行真实模型请求、文件修改或终端命令，也不依赖 VS Code。
 
+### 运行真实模型规划 Demo
+
+`HELIX_BASE_URL` 需要指向 OpenAI Compatible API 的版本根路径，例如 `https://api.example.com/v1`。请勿将真实 API Key 写入仓库。
+
+```bash
+HELIX_API_KEY="your-api-key" \
+HELIX_BASE_URL="https://api.example.com/v1" \
+HELIX_MODEL="your-model-id" \
+pnpm --filter @helix-agent/core demo:model -- "分析当前项目的核心模块"
+```
+
+该命令会将用户任务交给 `ModelPlanner`，并在控制台输出模型生成的计划。当前链路不调用工具，不修改文件，也不执行终端命令。
+
 ### 文档入口
 
 - [项目愿景](docs/00-项目愿景.md)
@@ -91,7 +105,8 @@ pnpm --filter @helix-agent/core demo
 
 - 仓库已初始化并已推送远端
 - Core Runtime 已可通过控制台 Demo 独立运行
-- Planner 和 Executor 当前仍为固定行为的 Fake 实现
+- Core Runtime 已可通过 `ModelPlanner` 调用真实 OpenAI Compatible 模型
+- Executor 当前仍为固定行为的 Fake 实现
 - CLI、Desktop 和 VS Code 目前只有工作区脚手架，尚未接入 Core Runtime
 
 ---
@@ -111,6 +126,7 @@ This repository is still in an early stage. It now includes protocol types, mode
 - A pnpm monorepo workspace
 - Agent protocol and model interfaces
 - A minimal Core Runtime using FakePlanner and FakeExecutor
+- A planning demo backed by a real OpenAI-compatible model
 
 ### Core Positioning
 
@@ -174,6 +190,19 @@ pnpm --filter @helix-agent/core demo
 
 The console prints the complete event stream, including `task.created`, `status.changed`, `plan.created`, and `finished`. The demo currently uses only FakePlanner and FakeExecutor, performs no real model requests, file modifications, or terminal commands, and does not depend on VS Code.
 
+### Run The Real Model Planning Demo
+
+`HELIX_BASE_URL` must point to the versioned root of an OpenAI-compatible API, such as `https://api.example.com/v1`. Do not write a real API key into the repository.
+
+```bash
+HELIX_API_KEY="your-api-key" \
+HELIX_BASE_URL="https://api.example.com/v1" \
+HELIX_MODEL="your-model-id" \
+pnpm --filter @helix-agent/core demo:model -- "Analyze the core modules in this project"
+```
+
+This command sends the user task to `ModelPlanner` and prints the model-generated plan. The current flow does not call tools, modify files, or execute terminal commands.
+
 ### Documents
 
 - [Project Vision](docs/00-项目愿景.md)
@@ -183,5 +212,6 @@ The console prints the complete event stream, including `task.created`, `status.
 
 - The repository has been initialized and pushed to the remote
 - The Core Runtime can now run independently through the console demo
-- Planner and Executor are still deterministic fake implementations
+- The Core Runtime can now call a real OpenAI-compatible model through `ModelPlanner`
+- Executor is still a deterministic fake implementation
 - CLI, Desktop, and VS Code currently remain workspace scaffolds and are not connected to the Core Runtime

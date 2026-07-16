@@ -12,6 +12,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "demo": "node --import tsx demo/run-runtime-demo.ts",
+    "demo:model": "node --import tsx demo/model-runtime-demo.ts",
     "typecheck": "tsc -p tsconfig.demo.json --noEmit",
     "lint": "eslint \"src/**/*.ts\" \"demo/**/*.ts\"",
     "test": "vitest run --passWithNoTests"
