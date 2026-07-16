@@ -17,6 +17,10 @@ describe('VS Code 扩展清单', () => {
     expect(manifest.name).toBe('helix-agent-vscode');
     expect(manifest.publisher).toBe('liangzai927');
     expect(manifest.engines.vscode).toBe('^1.100.0');
+    expect(manifest.icon).toBe('media/helix-marketplace-icon-512.png');
+    expect(
+      manifest.contributes.viewsContainers.activitybar[0]?.icon,
+    ).toBe('media/helix.svg');
   });
 
   it('构建后通过官方工具生成无外部依赖的 VSIX', () => {

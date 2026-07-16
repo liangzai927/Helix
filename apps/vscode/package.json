@@ -5,6 +5,7 @@
   "private": true,
   "publisher": "liangzai927",
   "description": "VS Code client for Helix Agent",
+  "icon": "media/helix-marketplace-icon-512.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/liangzai927/Helix.git"
