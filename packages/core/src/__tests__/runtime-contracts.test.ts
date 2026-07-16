@@ -4,9 +4,9 @@ import { ToolRegistry } from '@helix-agent/tools';
 
 import {
   AgentRuntime,
+  ApprovalManager,
   defineRuntimeDependencies,
   resolveAgentRuntimeOptions,
-  type ApprovalManager,
   type ContextBuilder,
   type ConversationMemory,
   type Executor,
@@ -55,16 +55,7 @@ describe('core runtime contracts', () => {
       },
     };
 
-    const approvalManager: ApprovalManager = {
-      createApprovalRequest() {
-        return 'approval_1';
-      },
-      async waitForApproval() {
-        return {
-          approved: true,
-        };
-      },
-    };
+    const approvalManager = new ApprovalManager();
 
     const dependencies: RuntimeDependencies = defineRuntimeDependencies({
       planner,

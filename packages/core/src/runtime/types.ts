@@ -1,4 +1,4 @@
-import type { ApprovalManager } from '../approval';
+import type { ApprovalManagerPort } from '../approval';
 import type { ContextBuilder } from '../context';
 import type { ConversationMemory } from '../memory';
 import type { Executor } from '../executor';
@@ -56,7 +56,7 @@ export interface RuntimeDependencies {
   executor?: Executor;
   contextBuilder?: ContextBuilder;
   memory?: ConversationMemory;
-  approvalManager?: ApprovalManager;
+  approvalManager?: ApprovalManagerPort;
   clock?: RuntimeClock;
   idGenerator?: RuntimeIdGenerator;
   logger?: RuntimeLogger;
