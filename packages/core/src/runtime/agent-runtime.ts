@@ -54,7 +54,11 @@ export class AgentRuntime {
     yield state.setStatus('creating_task', '正在创建任务');
     yield state.setStatus('planning', '正在生成计划');
 
-    const plan = await this.createPlan(task);
+    const { plan, events: plannerEvents } = await this.createPlan(task);
+
+    for (const event of plannerEvents) {
+      yield event;
+    }
 
     yield {
       type: 'plan.created',
@@ -85,15 +89,24 @@ export class AgentRuntime {
     };
   }
 
-  private async createPlan(task: AgentTask): Promise<AgentPlan> {
-    return this.planner.createPlan(
+  private async createPlan(
+    task: AgentTask,
+  ): Promise<{ plan: AgentPlan; events: AgentEvent[] }> {
+    const events: AgentEvent[] = [];
+    const plan = await this.planner.createPlan(
       {
         input: task.input,
         taskId: task.id,
         conversationId: task.conversationId,
       },
-      {},
+      {
+        emitEvent(event) {
+          events.push(event);
+        },
+      },
     );
+
+    return { plan, events };
   }
 
   private createTaskTitle(input: string): string {

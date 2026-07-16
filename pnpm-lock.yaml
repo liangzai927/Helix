@@ -44,6 +44,9 @@ importers:
       '@helix-agent/models':
         specifier: workspace:*
         version: link:../models
+      '@helix-agent/prompts':
+        specifier: workspace:*
+        version: link:../prompts
       '@helix-agent/protocol':
         specifier: workspace:*
         version: link:../protocol

@@ -8,6 +8,7 @@ import type {
   ModelResponse,
 } from '@helix-agent/models';
 import type { AgentEvent } from '@helix-agent/protocol';
+import { ToolRegistry } from '@helix-agent/tools';
 
 import { AgentRuntime, ModelPlanner } from '../index';
 
@@ -67,14 +68,49 @@ async function collectEvents(iterable: AsyncIterable<AgentEvent>): Promise<Agent
 describe('ModelPlanner', () => {
   it('uses BaseModel.chat with the fixed planning prompt', async () => {
     const model = new FakeModel();
-    const planner = new ModelPlanner(model);
+    const toolRegistry = new ToolRegistry();
+    const executionOrder: string[] = [];
+    toolRegistry.register({
+      name: 'list_directory',
+      description: 'List directory',
+      inputSchema: { type: 'object' },
+      readOnly: true,
+      requiresApproval: false,
+      async execute() {
+        executionOrder.push('list_directory');
+        return { entries: [{ name: 'src', type: 'directory' }] };
+      },
+    });
+    toolRegistry.register({
+      name: 'search_text',
+      description: 'Search text',
+      inputSchema: { type: 'object' },
+      readOnly: true,
+      requiresApproval: false,
+      async execute() {
+        executionOrder.push('search_text');
+        return { matches: [{ path: 'src/index.ts', line: 1 }] };
+      },
+    });
+    const originalChat = model.chat.bind(model);
+    model.chat = async (request) => {
+      executionOrder.push('model');
+      return originalChat(request);
+    };
+    const planner = new ModelPlanner(model, toolRegistry);
+    const events: AgentEvent[] = [];
 
     const plan = await planner.createPlan(
       {
         input: '修复登录流程',
         taskId: 'task_1',
+        cwd: '/project',
       },
-      {},
+      {
+        emitEvent(event) {
+          events.push(event);
+        },
+      },
     );
 
     expect(plan).toMatchObject({
@@ -95,16 +131,41 @@ describe('ModelPlanner', () => {
     expect(model.requests[0]?.messages[0]?.content).toContain('步骤');
     expect(model.requests[0]?.messages[0]?.content).toContain('风险点');
     expect(model.requests[0]?.messages[0]?.content).toContain('关键文件');
-    expect(model.requests[0]?.messages[1]).toEqual({
-      role: 'user',
-      content: '修复登录流程',
-    });
+    expect(model.requests[0]?.messages[1]?.content).toContain('src/index.ts');
+    expect(executionOrder).toEqual(['list_directory', 'search_text', 'model']);
+    expect(events.map((event) => event.type)).toEqual([
+      'tool.call.started',
+      'tool.call.finished',
+      'tool.call.started',
+      'tool.call.finished',
+    ]);
   });
 
   it('can be injected into AgentRuntime', async () => {
     const model = new FakeModel();
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'list_directory',
+      description: 'List directory',
+      inputSchema: { type: 'object' },
+      readOnly: true,
+      requiresApproval: false,
+      async execute() {
+        return { entries: [] };
+      },
+    });
+    toolRegistry.register({
+      name: 'search_text',
+      description: 'Search text',
+      inputSchema: { type: 'object' },
+      readOnly: true,
+      requiresApproval: false,
+      async execute() {
+        return { matches: [] };
+      },
+    });
     const runtime = new AgentRuntime({
-      planner: new ModelPlanner(model),
+      planner: new ModelPlanner(model, toolRegistry),
       idGenerator: {
         next(prefix?: string) {
           return prefix === 'task' ? 'task_1' : `${prefix ?? 'id'}_1`;
@@ -129,6 +190,39 @@ describe('ModelPlanner', () => {
         summary: '模型生成的计划摘要',
       },
     });
+    expect(events.map((event) => event.type)).toEqual([
+      'task.created',
+      'status.changed',
+      'status.changed',
+      'tool.call.started',
+      'tool.call.finished',
+      'tool.call.started',
+      'tool.call.finished',
+      'plan.created',
+      'status.changed',
+      'finished',
+    ]);
     expect(model.requests).toHaveLength(1);
+  });
+
+  it('rejects non-read-only planning tools before calling the model', async () => {
+    const model = new FakeModel();
+    const toolRegistry = new ToolRegistry();
+    toolRegistry.register({
+      name: 'list_directory',
+      description: 'Unsafe list directory',
+      inputSchema: { type: 'object' },
+      readOnly: false,
+      requiresApproval: true,
+      async execute() {
+        return {};
+      },
+    });
+    const planner = new ModelPlanner(model, toolRegistry);
+
+    await expect(
+      planner.createPlan({ input: '修复问题', taskId: 'task_1' }, {}),
+    ).rejects.toThrow('Planner 禁止调用非只读工具 list_directory');
+    expect(model.requests).toHaveLength(0);
   });
 });

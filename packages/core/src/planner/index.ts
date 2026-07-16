@@ -2,14 +2,9 @@ import type { RuntimeMetadata } from '../runtime';
 import { randomUUID } from 'node:crypto';
 
 import type { BaseModel } from '@helix-agent/models';
-import type { AgentPlan } from '@helix-agent/protocol';
-
-const MODEL_PLANNER_SYSTEM_PROMPT = `你是 Helix Agent 的规划器。请分析用户任务，并严格按照以下结构输出计划：
-1. 问题理解
-2. 影响范围
-3. 步骤
-4. 风险点
-5. 关键文件`;
+import { buildPlannerPrompt } from '@helix-agent/prompts';
+import type { AgentEvent, AgentPlan, JsonObject, JsonValue } from '@helix-agent/protocol';
+import type { ToolRegistry } from '@helix-agent/tools';
 
 /** Planner 收到的任务输入，后续 runtime 会在这里逐步补充更多字段。 */
 export interface PlannerTask<TInput = string> {
@@ -24,6 +19,7 @@ export interface PlannerTask<TInput = string> {
 export interface PlannerContext {
   cwd?: string;
   metadata?: RuntimeMetadata;
+  emitEvent?: (event: AgentEvent) => Promise<void> | void;
 }
 
 /** Planner 的职责是产出 plan，而不是直接执行副作用。 */
@@ -71,14 +67,20 @@ export class FakePlanner
 export class ModelPlanner
   implements Planner<PlannerTask<string>, PlannerContext, AgentPlan>
 {
-  public constructor(private readonly model: BaseModel) {}
+  public constructor(
+    private readonly model: BaseModel,
+    private readonly toolRegistry?: ToolRegistry,
+  ) {}
 
   /** 向模型发送固定规划 Prompt，并将模型文本收敛到 plan.summary。 */
   public async createPlan(
     task: PlannerTask<string>,
     _context: PlannerContext,
   ): Promise<AgentPlan> {
-    void _context;
+    const toolContext =
+      this.toolRegistry === undefined
+        ? []
+        : await this.collectToolContext(task, _context);
 
     const response = await this.model.chat({
       tools: [],
@@ -86,11 +88,11 @@ export class ModelPlanner
       messages: [
         {
           role: 'system',
-          content: MODEL_PLANNER_SYSTEM_PROMPT,
+          content: buildPlannerPrompt(task.input),
         },
         {
           role: 'user',
-          content: task.input,
+          content: createToolContextMessage(toolContext),
         },
       ],
     });
@@ -107,6 +109,158 @@ export class ModelPlanner
       summary: response.message.content,
     };
   }
+
+  /** 按固定顺序执行目录和文本搜索，为模型构建只读上下文。 */
+  private async collectToolContext(
+    task: PlannerTask<string>,
+    context: PlannerContext,
+  ): Promise<PlannerToolContext[]> {
+    const cwd = task.cwd ?? context.cwd ?? '.';
+
+    return [
+      {
+        toolName: 'list_directory',
+        output: await this.executeReadOnlyTool(
+          'list_directory',
+          { path: cwd },
+          task,
+          context,
+        ),
+      },
+      {
+        toolName: 'search_text',
+        output: await this.executeReadOnlyTool(
+          'search_text',
+          { query: task.input, cwd },
+          task,
+          context,
+        ),
+      },
+    ];
+  }
+
+  /** 执行单个已注册只读工具，并在执行前后输出协议事件。 */
+  private async executeReadOnlyTool(
+    toolName: string,
+    input: JsonObject,
+    task: PlannerTask<string>,
+    context: PlannerContext,
+  ): Promise<JsonValue> {
+    const tool = this.toolRegistry?.get(toolName);
+
+    if (tool === undefined) {
+      throw new Error(`Planner 缺少必需工具 ${toolName}`);
+    }
+
+    if (!tool.readOnly) {
+      throw new Error(`Planner 禁止调用非只读工具 ${toolName}`);
+    }
+
+    const taskId = task.taskId ?? createPlannerId('task');
+    const toolCallId = createPlannerId('tool_call');
+    const startedAt = new Date().toISOString();
+
+    await context.emitEvent?.({
+      type: 'tool.call.started',
+      taskId,
+      createdAt: startedAt,
+      toolCall: {
+        id: toolCallId,
+        taskId,
+        toolName,
+        input,
+        createdAt: startedAt,
+        readOnly: tool.readOnly,
+        requiresApproval: tool.requiresApproval,
+        status: 'running',
+        startedAt,
+      },
+    });
+
+    try {
+      const output = requireJsonValue(await tool.execute(input));
+      const finishedAt = new Date().toISOString();
+
+      await context.emitEvent?.({
+        type: 'tool.call.finished',
+        taskId,
+        createdAt: finishedAt,
+        toolResult: {
+          id: createPlannerId('tool_result'),
+          taskId,
+          toolCallId,
+          toolName,
+          createdAt: finishedAt,
+          status: 'success',
+          summary: `工具 ${toolName} 执行完成`,
+          output,
+        },
+      });
+
+      return output;
+    } catch (error) {
+      const finishedAt = new Date().toISOString();
+
+      await context.emitEvent?.({
+        type: 'tool.call.finished',
+        taskId,
+        createdAt: finishedAt,
+        toolResult: {
+          id: createPlannerId('tool_result'),
+          taskId,
+          toolCallId,
+          toolName,
+          createdAt: finishedAt,
+          status: 'error',
+          summary: `工具 ${toolName} 执行失败`,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        },
+      });
+
+      throw error;
+    }
+  }
+}
+
+interface PlannerToolContext {
+  toolName: string;
+  output: JsonValue;
+}
+
+/** 将只读工具结果以稳定 JSON 形态交给模型。 */
+function createToolContextMessage(context: PlannerToolContext[]): string {
+  return `只读工具上下文：\n${JSON.stringify(context)}`;
+}
+
+/** 确保工具输出能安全写入协议事件与模型上下文。 */
+function requireJsonValue(value: unknown): JsonValue {
+  if (isJsonValue(value)) {
+    return value;
+  }
+
+  throw new Error('工具输出不是有效 JSON 值');
+}
+
+/** 递归检查未知值是否符合协议层 JSON 类型。 */
+function isJsonValue(value: unknown): value is JsonValue {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.every(isJsonValue);
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    return Object.values(value).every(isJsonValue);
+  }
+
+  return false;
 }
 
 /** 统一 FakePlanner 的默认标题裁剪规则，避免 runtime 和 planner 各写一份。 */
