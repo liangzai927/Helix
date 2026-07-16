@@ -1,14 +1,37 @@
 {
-  "name": "@helix-agent/vscode",
+  "name": "helix-agent-vscode",
+  "displayName": "Helix Agent",
   "version": "0.1.0",
   "private": true,
-  "description": "VS Code adapter workspace package for Helix Agent",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "publisher": "liangzai927",
+  "description": "VS Code client for Helix Agent",
+  "categories": [
+    "Other"
+  ],
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onCommand:helix.hello"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "helix.hello",
+        "title": "Helix: Hello"
+      }
+    ]
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.125.0",
+    "esbuild": "^0.28.1"
   }
 }
